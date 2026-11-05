@@ -175,10 +175,15 @@ opps/
     ├── main.cpp                     # OOP demonstration — class hierarchy
     ├── scoring_engine.cpp           # OOP demonstration — scoring engine
     │
+    ├── phase1_3.cpp                 # OOP demonstration — match, player stats & ratings
+    ├── phase1_4.cpp                 # OOP demonstration — tournament fixtures & NRR
+    ├── phase1_5.cpp                 # OOP demonstration — league stage & playoffs
+    │
     ├── phase1_6.cpp                 # Production C++ engine — match results
     ├── phase1_6.exe                 # Compiled match result engine
     │
     ├── phase1_9_engine.cpp          # Production C++ engine — ball-by-ball scoring
+    ├── phase1_9_engine.exe          # Compiled scoring engine
     │
     ├── include/
     │   └── json.hpp                 # nlohmann/json header-only library
@@ -361,7 +366,7 @@ All services share a single SQLite database: `cricket_tournament.db`.
 └─────────────────┘
 ```
 
-### Table Summary
+### Table Summary 
 
 | Table                  | Purpose                                    | Created By        |
 | ---------------------- | ------------------------------------------ | ----------------- |
@@ -513,12 +518,15 @@ http://127.0.0.1:5003
 
 ## 📝 OOP Demonstration Files
 
-The project includes two standalone C++ demonstration files that showcase OOP concepts without any backend integration:
+The project includes standalone C++ demonstration files that showcase OOP concepts across development phases:
 
 | File                   | Concepts Demonstrated                                                  |
 | ---------------------- | ---------------------------------------------------------------------- |
 | `main.cpp`             | Abstract classes, inheritance, polymorphism, smart pointers, templates |
 | `scoring_engine.cpp`   | Enums, structs, encapsulation, validation, state management            |
+| `phase1_3.cpp`         | Encapsulation, strike rotation, player performance ratings             |
+| `phase1_4.cpp`         | Net Run Rate (NRR) computation, round-robin fixture generation         |
+| `phase1_5.cpp`         | IPL-style playoff stages (Qualifier 1, Eliminator, Qualifier 2, Final) |
 
 These can be compiled and run independently:
 
@@ -530,10 +538,18 @@ g++ -o main.exe main.cpp -std=c++17
 
 g++ -o scoring_engine.exe scoring_engine.cpp -std=c++17
 ./scoring_engine.exe
+
+g++ -o phase1_3.exe phase1_3.cpp -std=c++17
+./phase1_3.exe
+
+g++ -o phase1_4.exe phase1_4.cpp -std=c++17
+./phase1_4.exe
+
+g++ -o phase1_5.exe phase1_5.cpp -std=c++17
+./phase1_5.exe
 ```
 
 ---
 
 #   o p p s p r o j e c t 
- 
  
