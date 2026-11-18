@@ -1,0 +1,112 @@
+# ==============================================================================
+# Git Ignore Configuration - Cricket Tournament Management System
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# C++ Compiled Executables & Intermediate Object Files
+# ------------------------------------------------------------------------------
+*.exe
+*.out
+*.app
+*.o
+*.obj
+*.dll
+*.so
+*.dylib
+*.a
+*.lib
+
+# Specific C++ engine binaries
+cpp_engine/engine.exe
+cpp_engine/engine
+cpp_engine/*.exe
+cpp_engine/*.dll
+cpp_engine/*.o
+cpp_engine/*.obj
+
+# ------------------------------------------------------------------------------
+# Python & Bytecode Cache
+# ------------------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual Environments
+venv/
+.venv/
+env/
+.env/
+ENV/
+env.bak/
+venv.bak/
+
+# Environment Variables & Secrets
+.env
+.env.*
+!.env.example
+
+# ------------------------------------------------------------------------------
+# SQLite Temporary Files & Write-Ahead Logs
+# (Note: database/cricket.db is auto-generated on launch if missing)
+# ------------------------------------------------------------------------------
+*.db-journal
+*.db-wal
+*.db-shm
+*.sqlite3-journal
+*.sqlite3-wal
+*.sqlite3-shm
+
+# ------------------------------------------------------------------------------
+# IDE, Editors & OS Files
+# ------------------------------------------------------------------------------
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+*.swp
+*.swo
+*~
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Windows
+Thumbs.db
+ehthumbs.db
+ehthumbs_vista.db
+Desktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msm
+*.msp
+*.lnk
+
+# ------------------------------------------------------------------------------
+# Logs & Diagnostic Dumps
+# ------------------------------------------------------------------------------
+*.log
+logs/
+*.pid
