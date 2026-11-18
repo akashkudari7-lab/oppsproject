@@ -31,6 +31,10 @@ protected:
     bool isTie;
     std::string resultDescription;
     bool isCompleted;
+    std::string stage;
+    bool isPlayoff;
+    std::string manOfMatch;
+    std::string manOfMatchPerformance;
 
     static std::string escapeJson(const std::string& input) {
         std::string out;
@@ -48,7 +52,8 @@ public:
           scoreA(0), scoreB(0), wicketsA(0), wicketsB(0),
           oversA(0.0), oversB(0.0),
           winnerId(0), winnerName(""), loserId(0), loserName(""),
-          isTie(false), resultDescription("Match Scheduled"), isCompleted(false) {}
+          isTie(false), resultDescription("Match Scheduled"), isCompleted(false),
+          stage("Group"), isPlayoff(false), manOfMatch(""), manOfMatchPerformance("") {}
 
     virtual ~Match() {}
 
@@ -74,6 +79,20 @@ public:
     bool getIsTie() const { return isTie; }
     std::string getResultDescription() const { return resultDescription; }
     bool getIsCompleted() const { return isCompleted; }
+    std::string getStage() const { return stage; }
+    bool getIsPlayoff() const { return isPlayoff; }
+    std::string getManOfMatch() const { return manOfMatch; }
+    std::string getManOfMatchPerformance() const { return manOfMatchPerformance; }
+
+    void setStage(const std::string& st, bool playoff = false) {
+        stage = st;
+        isPlayoff = playoff;
+    }
+
+    void setManOfMatch(const std::string& name, const std::string& perf) {
+        manOfMatch = name;
+        manOfMatchPerformance = perf;
+    }
 
     // Setter for Scores
     void setScores(int sA, int wA, double oA, int sB, int wB, double oB) {
@@ -159,7 +178,11 @@ public:
            << "\"winner_name\":\"" << escapeJson(winnerName) << "\","
            << "\"loser_id\":" << loserId << ","
            << "\"loser_name\":\"" << escapeJson(loserName) << "\","
-           << "\"result_description\":\"" << escapeJson(resultDescription) << "\""
+           << "\"result_description\":\"" << escapeJson(resultDescription) << "\","
+           << "\"stage\":\"" << escapeJson(stage) << "\","
+           << "\"is_playoff\":" << (isPlayoff ? "true" : "false") << ","
+           << "\"man_of_match\":\"" << escapeJson(manOfMatch) << "\","
+           << "\"man_of_match_performance\":\"" << escapeJson(manOfMatchPerformance) << "\""
            << "}";
         return ss.str();
     }

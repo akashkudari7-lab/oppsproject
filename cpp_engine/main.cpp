@@ -306,9 +306,15 @@ void handlePointsTable(const std::string& jsonInput) {
             rec.teamBId = mItem.get("team_b_id").asInt(0);
             rec.scoreA = mItem.get("score_a").asInt(0);
             rec.scoreB = mItem.get("score_b").asInt(0);
+            rec.wicketsA = mItem.get("wickets_a").asInt(0);
+            rec.wicketsB = mItem.get("wickets_b").asInt(0);
+            rec.oversA = mItem.get("overs_a").asDouble(0.0);
+            rec.oversB = mItem.get("overs_b").asDouble(0.0);
             rec.winnerId = mItem.get("winner_id").asInt(0);
             rec.isTie = mItem.get("is_tie").asBool(false);
             rec.isCompleted = mItem.get("is_completed").asBool(true);
+            rec.stage = mItem.get("stage").asString("Group");
+            rec.isPlayoff = mItem.get("is_playoff").asBool(false);
             matchRecords.push_back(rec);
         }
     }
@@ -325,6 +331,56 @@ void handlePointsTable(const std::string& jsonInput) {
     for (size_t i = 0; i < table.size(); ++i) {
         if (i > 0) ss << ",";
         ss << table[i].toJson();
+    }
+    ss << "]}";
+
+    std::cout << ss.str() << std::endl;
+}
+
+void handleGenerateQualifiers(const std::string& jsonInput) {
+    JsonParser parser(jsonInput);
+    JsonValue root = parser.parseValue();
+
+    int tourneyId = root.get("tournament_id").asInt(1);
+    std::string tourneyName = root.get("tournament_name").asString("Tournament");
+    std::string format = root.get("format").asString("T20");
+    int startingMatchNumber = root.get("starting_match_number").asInt(1);
+
+    Tournament tournament(tourneyId, tourneyName, format);
+
+    std::vector<TeamStanding> standings;
+    const JsonValue& standingsArr = root.get("standings");
+    if (standingsArr.type == J_ARR) {
+        for (const auto& item : standingsArr.arr) {
+            TeamStanding st;
+            st.rank = item.get("rank").asInt(1);
+            st.teamId = item.get("team_id").asInt(0);
+            st.teamName = item.get("team_name").asString("Team");
+            st.points = item.get("points").asInt(0);
+            st.nrr = item.get("nrr").asDouble(0.0);
+            standings.push_back(st);
+        }
+    }
+
+    std::vector<PlayoffFixture> playoffs = tournament.generatePlayoffs(standings, startingMatchNumber);
+
+    std::ostringstream ss;
+    ss << "{\"status\":\"success\","
+       << "\"tournament_id\":" << tourneyId << ","
+       << "\"qualifiers\":[";
+    for (size_t i = 0; i < playoffs.size(); ++i) {
+        if (i > 0) ss << ",";
+        ss << "{"
+           << "\"match_number\":" << playoffs[i].matchNumber << ","
+           << "\"stage\":\"" << playoffs[i].stage << "\","
+           << "\"team_a_id\":" << playoffs[i].teamAId << ","
+           << "\"team_a_name\":\"" << playoffs[i].teamAName << "\","
+           << "\"team_b_id\":" << playoffs[i].teamBId << ","
+           << "\"team_b_name\":\"" << playoffs[i].teamBName << "\","
+           << "\"team_a_source\":\"" << playoffs[i].teamASource << "\","
+           << "\"team_b_source\":\"" << playoffs[i].teamBSource << "\","
+           << "\"description\":\"" << playoffs[i].description << "\""
+           << "}";
     }
     ss << "]}";
 
@@ -479,6 +535,8 @@ int main(int argc, char* argv[]) {
         handleCalculateResult(jsonInput);
     } else if (command == "--points-table" || command == "--standings" || command == "-p") {
         handlePointsTable(jsonInput);
+    } else if (command == "--qualifiers" || command == "-q") {
+        handleGenerateQualifiers(jsonInput);
     } else {
         std::cout << "{\"status\":\"error\",\"message\":\"Unknown command: " << command << "\"}" << std::endl;
         return 1;

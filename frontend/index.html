@@ -56,6 +56,9 @@
             <button class="nav-tab" data-tab="standings">
                 <span class="tab-icon">📋</span> Points Table
             </button>
+            <button class="nav-tab" data-tab="crex-stats">
+                <span class="tab-icon">🎖️</span> Crex Stats
+            </button>
         </div>
     </nav>
 
@@ -316,19 +319,37 @@
         </section>
 
         <!-- =============================================================== -->
-        <!-- TAB 5: FIXTURES & MATCH RESULTS -->
+        <!-- TAB 5: FIXTURES & MATCH RESULTS (GROUP + QUALIFIERS) -->
         <!-- =============================================================== -->
         <section id="tab-fixtures" class="tab-panel">
             <div class="section-title flex-between flex-wrap gap-2">
                 <div>
-                    <h2>Round-Robin Fixtures & Match Results</h2>
-                    <p>Generated fixtures where each team plays against every other team exactly once</p>
+                    <h2>Fixtures, Qualifiers &amp; Match Results</h2>
+                    <p>Round-robin group fixtures and IPL-style Playoff / Qualifier matches</p>
                 </div>
-                <div class="tournament-selector-box">
-                    <label for="selectTourneyForFixtures"><strong>Select Tournament:</strong></label>
-                    <select id="selectTourneyForFixtures">
-                        <option value="">-- Choose a tournament --</option>
-                    </select>
+                <div class="tournament-selector-box flex-wrap gap-2" style="display:flex; align-items:center;">
+                    <button id="btnGenerateQualifiers" class="btn btn-primary btn-sm"
+                        title="Generate Qualifier 1, Eliminator, Qualifier 2, and Final based on group standings">
+                        ⚡ Generate Playoff Matches
+                    </button>
+                    <div>
+                        <label for="selectTourneyForFixtures" style="margin-right: 0.35rem;"><strong>Tournament:</strong></label>
+                        <select id="selectTourneyForFixtures">
+                            <option value="">-- Choose a tournament --</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tournament Champion Trophy Banner (Visible when Final completed) -->
+            <div id="championBannerContainer"></div>
+
+            <!-- Stage Filter Controls -->
+            <div class="fixtures-filter-bar flex-between flex-wrap gap-2" style="margin-bottom: 1.25rem;">
+                <div class="filter-pill-group">
+                    <button class="filter-pill active" data-filter="all" onclick="filterFixturesByStage('all')">All Matches (<span id="countAllMatches">0</span>)</button>
+                    <button class="filter-pill" data-filter="group" onclick="filterFixturesByStage('group')">Group Stage (<span id="countGroupMatches">0</span>)</button>
+                    <button class="filter-pill" data-filter="playoff" onclick="filterFixturesByStage('playoff')">Playoffs &amp; Qualifiers (<span id="countPlayoffMatches">0</span>)</button>
                 </div>
             </div>
 
@@ -336,26 +357,31 @@
                 <div class="empty-state">
                     <span class="empty-state-icon">⚔️</span>
                     <h3>No Tournament Selected</h3>
-                    <p>Select a tournament from the dropdown above to view generated fixtures and enter match results.
-                    </p>
+                    <p>Select a tournament from the dropdown above to view generated fixtures, enter scores, and view Crex scorecards.</p>
                 </div>
             </div>
         </section>
 
         <!-- =============================================================== -->
-        <!-- TAB 6: POINTS TABLE -->
+        <!-- TAB 6: POINTS TABLE (WITH NET RUN RATE) -->
         <!-- =============================================================== -->
         <section id="tab-standings" class="tab-panel">
             <div class="section-title flex-between flex-wrap gap-2">
                 <div>
-                    <h2>Tournament Points Table</h2>
-                    <p>Current tournament standings (Win = 2 pts, Tie = 1 pt, Loss = 0 pts)</p>
+                    <h2>Tournament Points Table &amp; Net Run Rate</h2>
+                    <p>ICC / IPL Standard Standings: Win = 2 pts, Tie = 1 pt, Loss = 0 pts with exact Net Run Rate</p>
                 </div>
-                <div class="tournament-selector-box">
-                    <label for="selectTourneyForStandings"><strong>Select Tournament:</strong></label>
-                    <select id="selectTourneyForStandings">
-                        <option value="">-- Choose a tournament --</option>
-                    </select>
+                <div class="tournament-selector-box flex-wrap gap-2" style="display:flex; align-items:center;">
+                    <button id="btnGenerateQualifiersFromStandings" class="btn btn-secondary btn-sm"
+                        title="Generate Playoffs for top 4 teams">
+                        ⚡ Generate Qualifiers
+                    </button>
+                    <div>
+                        <label for="selectTourneyForStandings" style="margin-right: 0.35rem;"><strong>Tournament:</strong></label>
+                        <select id="selectTourneyForStandings">
+                            <option value="">-- Choose a tournament --</option>
+                        </select>
+                    </div>
                 </div>
             </div>
 
@@ -369,6 +395,7 @@
                         <span class="chip chip-win">Win: 2 Pts</span>
                         <span class="chip chip-tie">Tie: 1 Pt</span>
                         <span class="chip chip-loss">Loss: 0 Pts</span>
+                        <span class="chip chip-nrr" style="background:#dbeafe; color:#1e40af; border:1px solid #bfdbfe;">NRR Enabled</span>
                     </div>
                 </div>
                 <div class="table-container">
@@ -377,26 +404,116 @@
                             <tr>
                                 <th>Rank</th>
                                 <th>Team Name</th>
-                                <th>Played</th>
-                                <th>Won</th>
-                                <th>Lost</th>
-                                <th>Tied</th>
-                                <th>Points</th>
+                                <th class="text-center">P</th>
+                                <th class="text-center">W</th>
+                                <th class="text-center">L</th>
+                                <th class="text-center">T</th>
+                                <th class="text-center">NRR</th>
+                                <th class="text-center">Pts</th>
                             </tr>
                         </thead>
                         <tbody>
                             <tr>
-                                <td colspan="7" class="text-center text-muted">Select a tournament above to view its
-                                    points table.</td>
+                                <td colspan="8" class="text-center text-muted">Select a tournament above to view its points table.</td>
                             </tr>
                         </tbody>
                     </table>
                 </div>
                 <div class="card-footer">
                     <small class="text-muted">
-                        * Ranking Tie-breaker Hierarchy: 1) Total Points, 2) Total Wins, 3) Team Name Alphabetical
-                        Order.
+                        * ICC Tie-breaker Hierarchy: 1) Total Points, 2) Total Wins, 3) Highest Net Run Rate (NRR), 4) Team Name Alphabetical Order.
+                        Top 4 teams qualify for the Playoff / Qualifier stage.
                     </small>
+                </div>
+            </div>
+        </section>
+
+        <!-- =============================================================== -->
+        <!-- TAB 7: CREX STATS & TOURNAMENT LEADERBOARDS -->
+        <!-- =============================================================== -->
+        <section id="tab-crex-stats" class="tab-panel">
+            <div class="section-title flex-between flex-wrap gap-2">
+                <div>
+                    <h2>CREX App Tournament Leaderboards</h2>
+                    <p>Individual player statistics: Orange Cap (Leading Run Scorers) and Purple Cap (Leading Wicket Takers)</p>
+                </div>
+                <div class="tournament-selector-box">
+                    <label for="selectTourneyForCrexStats"><strong>Select Tournament:</strong></label>
+                    <select id="selectTourneyForCrexStats">
+                        <option value="">-- Choose a tournament --</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="grid-2-col">
+                <!-- Orange Cap: Most Runs -->
+                <div class="card">
+                    <div class="card-header flex-between" style="border-left: 4px solid #ea580c;">
+                        <div style="display:flex; align-items:center; gap: 0.5rem;">
+                            <span style="font-size: 1.5rem;">🧡</span>
+                            <div>
+                                <h3 style="color:#c2410c;">Orange Cap</h3>
+                                <small class="text-muted">Most Runs in the Tournament</small>
+                            </div>
+                        </div>
+                        <span class="badge" style="background:#ffedd5; color:#c2410c; font-weight:700;">Top Batters</span>
+                    </div>
+                    <div class="table-container">
+                        <table class="data-table" id="tableOrangeCap">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Batter</th>
+                                    <th>Team</th>
+                                    <th class="text-right">Runs</th>
+                                    <th class="text-right">B</th>
+                                    <th class="text-right">4s</th>
+                                    <th class="text-right">6s</th>
+                                    <th class="text-right">SR</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td colspan="8" class="text-center text-muted">Select tournament to view Orange Cap leaderboard.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Purple Cap: Most Wickets -->
+                <div class="card">
+                    <div class="card-header flex-between" style="border-left: 4px solid #7c3aed;">
+                        <div style="display:flex; align-items:center; gap: 0.5rem;">
+                            <span style="font-size: 1.5rem;">💜</span>
+                            <div>
+                                <h3 style="color:#6d28d9;">Purple Cap</h3>
+                                <small class="text-muted">Most Wickets in the Tournament</small>
+                            </div>
+                        </div>
+                        <span class="badge" style="background:#f3e8ff; color:#6d28d9; font-weight:700;">Top Bowlers</span>
+                    </div>
+                    <div class="table-container">
+                        <table class="data-table" id="tablePurpleCap">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Bowler</th>
+                                    <th>Team</th>
+                                    <th class="text-right">Wkts</th>
+                                    <th class="text-right">Overs</th>
+                                    <th class="text-right">M</th>
+                                    <th class="text-right">Runs</th>
+                                    <th class="text-right">Econ</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td colspan="8" class="text-center text-muted">Select tournament to view Purple Cap leaderboard.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </section>
@@ -476,6 +593,141 @@
                     </button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- =============================================================== -->
+    <!-- CREX LIVE MATCH SCORECARD MODAL (INDIVIDUAL PLAYER SCORES) -->
+    <!-- =============================================================== -->
+    <div id="crexScorecardModal" class="modal-backdrop">
+        <div class="modal-dialog modal-lg crex-modal-dialog">
+            <div class="modal-header crex-modal-header">
+                <div>
+                    <div class="crex-badge-row">
+                        <span class="crex-logo-tag">🏏 CREX SCORECARD</span>
+                        <span id="crexMatchStageBadge" class="badge badge-gold">Stage</span>
+                        <span id="crexMatchFormatBadge" class="badge badge-blue">Format</span>
+                    </div>
+                    <h3 id="crexModalTitle" style="margin-top: 0.35rem; color: #fff;">Match Scorecard</h3>
+                </div>
+                <button class="modal-close" style="color: #fff;" onclick="closeCrexModal()">&times;</button>
+            </div>
+            <div class="modal-body crex-modal-body">
+                <!-- Match Score Banner -->
+                <div class="crex-banner">
+                    <div class="crex-team-block">
+                        <h4 id="crexTeamAName">Team A</h4>
+                        <div class="crex-team-score-num" id="crexTeamAScore">-</div>
+                        <div class="crex-rr-text" id="crexTeamARR">RR: -</div>
+                    </div>
+                    <div class="crex-banner-center">
+                        <div class="crex-vs-circle">VS</div>
+                        <div id="crexResultDesc" class="crex-result-pill">Match Scheduled</div>
+                    </div>
+                    <div class="crex-team-block">
+                        <h4 id="crexTeamBName">Team B</h4>
+                        <div class="crex-team-score-num" id="crexTeamBScore">-</div>
+                        <div class="crex-rr-text" id="crexTeamBRR">RR: -</div>
+                    </div>
+                </div>
+
+                <!-- Player of the Match Banner -->
+                <div id="crexMomBanner" class="crex-mom-card" style="display:none;">
+                    <div class="crex-mom-icon">⭐</div>
+                    <div>
+                        <span class="crex-mom-label">PLAYER OF THE MATCH</span>
+                        <h4 id="crexMomName">Player Name</h4>
+                        <p id="crexMomPerf">Performance Details</p>
+                    </div>
+                </div>
+
+                <!-- Innings Tabs -->
+                <div class="crex-innings-tabs">
+                    <button class="crex-innings-tab active" id="btnInnings1Tab" onclick="switchCrexInnings(1)">
+                        <span id="labelInnings1Tab">Innings 1</span>
+                    </button>
+                    <button class="crex-innings-tab" id="btnInnings2Tab" onclick="switchCrexInnings(2)">
+                        <span id="labelInnings2Tab">Innings 2</span>
+                    </button>
+                </div>
+
+                <!-- Innings Scorecard View -->
+                <div id="crexInningsContent">
+                    <!-- Batting Scorecard -->
+                    <div class="crex-section-card">
+                        <div class="crex-section-header">
+                            <h5>🏏 Batting Scorecard</h5>
+                        </div>
+                        <div class="table-container">
+                            <table class="data-table crex-table" id="tableCrexBatting">
+                                <thead>
+                                    <tr>
+                                        <th>Batter</th>
+                                        <th>Dismissal</th>
+                                        <th class="text-right">R</th>
+                                        <th class="text-right">B</th>
+                                        <th class="text-right">4s</th>
+                                        <th class="text-right">6s</th>
+                                        <th class="text-right">SR</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                        <div class="crex-innings-summary">
+                            <div><strong>Extras:</strong> <span id="crexExtras">0</span></div>
+                            <div><strong>Total:</strong> <span id="crexTotalScore" style="font-size: 1.15rem; font-weight:800; color:var(--primary-dark);">0/0</span> <span id="crexTotalOvers">(0.0 ov)</span></div>
+                        </div>
+                        <div class="crex-dnb-row" id="crexYetToBatRow">
+                            <small class="text-muted"><strong>Yet to Bat:</strong> <span id="crexYetToBat">-</span></small>
+                        </div>
+                    </div>
+
+                    <!-- Bowling Scorecard -->
+                    <div class="crex-section-card" style="margin-top: 1rem;">
+                        <div class="crex-section-header">
+                            <h5>🎯 Bowling Figures</h5>
+                        </div>
+                        <div class="table-container">
+                            <table class="data-table crex-table" id="tableCrexBowling">
+                                <thead>
+                                    <tr>
+                                        <th>Bowler</th>
+                                        <th class="text-right">O</th>
+                                        <th class="text-right">M</th>
+                                        <th class="text-right">R</th>
+                                        <th class="text-right">W</th>
+                                        <th class="text-right">Econ</th>
+                                        <th class="text-right">Dots</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Custom Score Editor Section (Toggled via button) -->
+                <div id="crexEditorSection" style="display:none; margin-top: 1.5rem;" class="card">
+                    <div class="card-header flex-between">
+                        <h4>✏️ Edit Individual Player Scores</h4>
+                        <button class="btn btn-secondary btn-xs" onclick="toggleCrexEditor(false)">✕ Close Editor</button>
+                    </div>
+                    <div id="crexEditorTablesContainer" style="padding: 1rem;"></div>
+                    <div style="padding: 1rem; border-top: 1px solid var(--border-color); text-align: right;">
+                        <button class="btn btn-primary btn-sm" onclick="saveCrexEditorScores()">💾 Save Player Scores</button>
+                    </div>
+                </div>
+
+            </div>
+            <div class="modal-footer flex-between">
+                <div>
+                    <button type="button" class="btn btn-secondary btn-sm" id="btnToggleEditCrex" onclick="toggleCrexEditor()">
+                        ✏️ Edit Player Scores
+                    </button>
+                </div>
+                <button type="button" class="btn btn-primary btn-sm" onclick="closeCrexModal()">Close</button>
+            </div>
         </div>
     </div>
 

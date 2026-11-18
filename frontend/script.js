@@ -16,6 +16,10 @@ document.addEventListener('DOMContentLoaded', () => {
 let allTeamsCache = [];
 let allTournamentsCache = [];
 let currentSelectedTourneyId = null;
+let currentTournamentMatches = [];
+let currentStageFilter = 'all';
+let currentScorecardData = null;
+let currentInningsView = 1;
 
 // ============================================================================
 // TAB NAVIGATION
@@ -55,6 +59,10 @@ function switchTab(tabId) {
     if (tabId === 'standings') {
         loadTournaments();
         if (currentSelectedTourneyId) loadStandings(currentSelectedTourneyId);
+    }
+    if (tabId === 'crex-stats') {
+        loadTournaments();
+        if (currentSelectedTourneyId) loadCrexStats(currentSelectedTourneyId);
     }
 }
 
@@ -227,6 +235,43 @@ function initEventListeners() {
             } else {
                 renderEmptyStandings();
             }
+        });
+    }
+
+    // Select Tournament for Crex Stats
+    const selTourneyCrexStats = document.getElementById('selectTourneyForCrexStats');
+    if (selTourneyCrexStats) {
+        selTourneyCrexStats.addEventListener('change', (e) => {
+            const tourneyId = e.target.value;
+            currentSelectedTourneyId = tourneyId ? parseInt(tourneyId) : null;
+            if (currentSelectedTourneyId) {
+                loadCrexStats(currentSelectedTourneyId);
+            } else {
+                renderEmptyCrexStats();
+            }
+        });
+    }
+
+    // Generate Playoff / Qualifier Buttons
+    const btnGenQual = document.getElementById('btnGenerateQualifiers');
+    if (btnGenQual) {
+        btnGenQual.addEventListener('click', () => {
+            if (!currentSelectedTourneyId) {
+                showToast('Please select a tournament first.', 'error');
+                return;
+            }
+            triggerGenerateQualifiers(currentSelectedTourneyId);
+        });
+    }
+
+    const btnGenQualStandings = document.getElementById('btnGenerateQualifiersFromStandings');
+    if (btnGenQualStandings) {
+        btnGenQualStandings.addEventListener('click', () => {
+            if (!currentSelectedTourneyId) {
+                showToast('Please select a tournament first.', 'error');
+                return;
+            }
+            triggerGenerateQualifiers(currentSelectedTourneyId);
         });
     }
 
@@ -591,6 +636,13 @@ function populateTourneyDropdowns(tourneys) {
         selStan.innerHTML = options;
         if (prev) selStan.value = prev;
     }
+
+    const selCrex = document.getElementById('selectTourneyForCrexStats');
+    if (selCrex) {
+        const prev = selCrex.value;
+        selCrex.innerHTML = options;
+        if (prev) selCrex.value = prev;
+    }
 }
 
 function viewTournamentFixtures(tourneyId) {
@@ -617,13 +669,15 @@ async function loadFixtures(tourneyId) {
     const container = document.getElementById('fixturesContainer');
     if (!container) return;
 
-    container.innerHTML = `<div class="text-center" style="padding: 2rem;">⏳ Loading fixtures...</div>`;
+    container.innerHTML = `<div class="text-center" style="padding: 2rem;">⏳ Loading fixtures & qualifiers...</div>`;
 
     try {
         const res = await fetch(`/api/tournaments/${tourneyId}/matches`);
         const data = await res.json();
         if (res.ok && data.status === 'success') {
-            renderFixtures(data.data);
+            currentTournamentMatches = data.data || [];
+            updateStageCounts(currentTournamentMatches);
+            renderFixtures(currentTournamentMatches);
         } else {
             container.innerHTML = `<div class="empty-state"><h3>Error loading fixtures</h3><p>${data.message}</p></div>`;
         }
@@ -632,16 +686,63 @@ async function loadFixtures(tourneyId) {
     }
 }
 
-function renderFixtures(matches) {
+function updateStageCounts(matches) {
+    const countAll = document.getElementById('countAllMatches');
+    const countGroup = document.getElementById('countGroupMatches');
+    const countPlayoff = document.getElementById('countPlayoffMatches');
+
+    if (countAll) countAll.innerText = matches.length;
+    if (countGroup) countGroup.innerText = matches.filter(m => !m.is_playoff).length;
+    if (countPlayoff) countPlayoff.innerText = matches.filter(m => m.is_playoff).length;
+}
+
+function filterFixturesByStage(stage) {
+    currentStageFilter = stage;
+    document.querySelectorAll('.filter-pill').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.filter === stage);
+    });
+    renderFixtures(currentTournamentMatches);
+}
+
+function renderFixtures(allMatches) {
     const container = document.getElementById('fixturesContainer');
     if (!container) return;
 
+    // Filter matches
+    let matches = allMatches;
+    if (currentStageFilter === 'group') {
+        matches = allMatches.filter(m => !m.is_playoff);
+    } else if (currentStageFilter === 'playoff') {
+        matches = allMatches.filter(m => m.is_playoff);
+    }
+
+    // Check for Grand Final Winner Champion Banner
+    const finalMatch = allMatches.find(m => (m.stage === 'Final' || m.stage === 'Grand Final') && m.status === 'Completed');
+    const champContainer = document.getElementById('championBannerContainer');
+    if (champContainer) {
+        if (finalMatch && finalMatch.winner_name && finalMatch.winner_name !== 'Tie') {
+            champContainer.innerHTML = `
+                <div class="champion-banner">
+                    <div class="champion-trophy">🏆</div>
+                    <h2>TOURNAMENT CHAMPION</h2>
+                    <h1 style="font-size:2.25rem; font-family:var(--font-heading); color:#fef08a; margin: 0.35rem 0;">${escapeHtml(finalMatch.winner_name)}</h1>
+                    <p>${escapeHtml(finalMatch.result_description || 'Crowned Champion of the Tournament!')}</p>
+                </div>
+            `;
+        } else {
+            champContainer.innerHTML = '';
+        }
+    }
+
     if (matches.length === 0) {
+        const msg = currentStageFilter === 'playoff'
+            ? 'No playoff matches generated yet. Click "⚡ Generate Playoff Matches" once group stage finishes!'
+            : 'No fixtures found for this tournament.';
         container.innerHTML = `
             <div class="empty-state">
                 <span class="empty-state-icon">⚔️</span>
-                <h3>No Fixtures Generated</h3>
-                <p>No fixtures found for this tournament.</p>
+                <h3>No Matches Available</h3>
+                <p>${msg}</p>
             </div>
         `;
         return;
@@ -651,32 +752,67 @@ function renderFixtures(matches) {
         <div class="fixtures-grid">
             ${matches.map(m => {
                 const isCompleted = (m.status === 'Completed');
-                const cardClass = isCompleted ? 'match-card completed' : 'match-card';
+                const isPlayoff = Boolean(m.is_playoff);
+                let cardClass = isCompleted ? 'match-card completed' : 'match-card';
+                if (isPlayoff) cardClass += ' playoff';
+
+                // Stage Badge
+                let stageBadgeHtml = '';
+                if (m.stage === 'Qualifier 1') {
+                    stageBadgeHtml = `<span class="badge badge-qualifier-1">⚡ QUALIFIER 1</span>`;
+                } else if (m.stage === 'Eliminator') {
+                    stageBadgeHtml = `<span class="badge badge-eliminator">🔥 ELIMINATOR</span>`;
+                } else if (m.stage === 'Qualifier 2') {
+                    stageBadgeHtml = `<span class="badge badge-qualifier-2">⚡ QUALIFIER 2</span>`;
+                } else if (m.stage === 'Final') {
+                    stageBadgeHtml = `<span class="badge badge-final">🏆 GRAND FINAL</span>`;
+                } else if (isPlayoff) {
+                    stageBadgeHtml = `<span class="badge badge-gold">⚡ ${escapeHtml(m.stage)}</span>`;
+                }
+
+                // Run rate calculation for completed matches
+                let rrA = '';
+                let rrB = '';
+                if (isCompleted) {
+                    if (m.overs_a && m.overs_a > 0) {
+                        const decA = Math.floor(m.overs_a) + ((m.overs_a % 1) * 10) / 6.0;
+                        rrA = ` <span style="font-size:0.75rem; color:#64748b;">(RR: ${(m.score_a / decA).toFixed(2)})</span>`;
+                    }
+                    if (m.overs_b && m.overs_b > 0) {
+                        const decB = Math.floor(m.overs_b) + ((m.overs_b % 1) * 10) / 6.0;
+                        rrB = ` <span style="font-size:0.75rem; color:#64748b;">(RR: ${(m.score_b / decB).toFixed(2)})</span>`;
+                    }
+                }
 
                 return `
                     <div class="${cardClass}">
                         <div class="match-header">
-                            <span class="match-num">Match #${m.match_number}</span>
+                            <div>
+                                <span class="match-num">Match #${m.match_number}</span>
+                                ${stageBadgeHtml}
+                            </div>
                             <span class="badge ${isCompleted ? 'badge-primary' : 'badge-muted'}">
                                 ${isCompleted ? 'Completed' : 'Scheduled'}
                             </span>
                         </div>
                         <div class="match-body">
                             <div class="match-team-row">
-                                <span class="team-name ${m.winner_id === m.team_a_id ? 'text-primary' : ''}">
-                                    ${escapeHtml(m.team_a_name)} ${m.winner_id === m.team_a_id ? '🏆' : ''}
+                                <span class="team-name ${m.winner_id === m.team_a_id ? 'text-primary font-bold' : ''}">
+                                    ${escapeHtml(m.team_a_name || 'TBD')} ${m.winner_id === m.team_a_id ? '🏆' : ''}
+                                    ${m.team_a_source ? `<small class="text-muted" style="display:block; font-size:0.72rem;">${escapeHtml(m.team_a_source)}</small>` : ''}
                                 </span>
                                 <span class="team-score">
-                                    ${isCompleted ? `${m.score_a}/${m.wickets_a} <small style="font-size:0.75rem; color:#64748b">(${m.overs_a} ov)</small>` : '-'}
+                                    ${isCompleted ? `${m.score_a}/${m.wickets_a} <small style="font-size:0.75rem; color:#64748b">(${m.overs_a} ov)</small>${rrA}` : '-'}
                                 </span>
                             </div>
                             <div class="match-vs">VS</div>
                             <div class="match-team-row">
-                                <span class="team-name ${m.winner_id === m.team_b_id ? 'text-primary' : ''}">
-                                    ${escapeHtml(m.team_b_name)} ${m.winner_id === m.team_b_id ? '🏆' : ''}
+                                <span class="team-name ${m.winner_id === m.team_b_id ? 'text-primary font-bold' : ''}">
+                                    ${escapeHtml(m.team_b_name || 'TBD')} ${m.winner_id === m.team_b_id ? '🏆' : ''}
+                                    ${m.team_b_source ? `<small class="text-muted" style="display:block; font-size:0.72rem;">${escapeHtml(m.team_b_source)}</small>` : ''}
                                 </span>
                                 <span class="team-score">
-                                    ${isCompleted ? `${m.score_b}/${m.wickets_b} <small style="font-size:0.75rem; color:#64748b">(${m.overs_b} ov)</small>` : '-'}
+                                    ${isCompleted ? `${m.score_b}/${m.wickets_b} <small style="font-size:0.75rem; color:#64748b">(${m.overs_b} ov)</small>${rrB}` : '-'}
                                 </span>
                             </div>
 
@@ -684,18 +820,57 @@ function renderFixtures(matches) {
                                 <div class="match-result-banner ${m.is_tie ? 'tie' : ''}">
                                     ${escapeHtml(m.result_description || 'Match completed')}
                                 </div>
+                                ${m.man_of_match ? `
+                                    <div style="font-size: 0.78rem; color:#78350f; background:#fef3c7; border-radius:4px; padding:0.25rem 0.5rem; margin-top:0.35rem; display:flex; align-items:center; gap:0.35rem;">
+                                        <span>⭐</span> <strong>Player of Match:</strong> ${escapeHtml(m.man_of_match)} <span class="text-muted">(${escapeHtml(m.man_of_match_performance || '')})</span>
+                                    </div>
+                                ` : ''}
                             ` : ''}
                         </div>
-                        <div class="match-footer">
-                            <button class="btn ${isCompleted ? 'btn-secondary' : 'btn-primary'} btn-sm" onclick="openScoreModal(${JSON.stringify(m).replace(/"/g, '&quot;')})">
-                                ${isCompleted ? '✏️ Edit Score' : '🎯 Enter Score'}
-                            </button>
+                        <div class="match-footer" style="display:flex; justify-content:space-between; gap:0.4rem;">
+                            ${isCompleted ? `
+                                <button class="btn btn-secondary btn-sm" onclick="openCrexScorecard(${m.id})">
+                                    📊 Crex Scorecard
+                                </button>
+                                <button class="btn btn-secondary btn-sm" onclick="openScoreModal(${JSON.stringify(m).replace(/"/g, '&quot;')})">
+                                    ✏️ Edit
+                                </button>
+                            ` : `
+                                <button class="btn btn-primary btn-sm" style="width:100%;" onclick="openScoreModal(${JSON.stringify(m).replace(/"/g, '&quot;')})">
+                                    🎯 Enter Score
+                                </button>
+                            `}
                         </div>
                     </div>
                 `;
             }).join('')}
         </div>
     `;
+}
+
+async function triggerGenerateQualifiers(tourneyId) {
+    if (!confirm('Generate Qualifier & Playoff matches (Qualifier 1, Eliminator, Qualifier 2, Final) based on the current points table ranking?')) {
+        return;
+    }
+
+    try {
+        const res = await fetch(`/api/tournaments/${tourneyId}/qualifiers/generate`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        const data = await res.json();
+        if (res.ok && data.status === 'success') {
+            showToast(data.message || 'Qualifier matches generated!', 'success');
+            loadFixtures(tourneyId);
+            loadDashboard();
+            switchTab('fixtures');
+            filterFixturesByStage('playoff');
+        } else {
+            showToast(data.message || 'Failed to generate qualifiers.', 'error');
+        }
+    } catch (err) {
+        showToast(`Error: ${err.message}`, 'error');
+    }
 }
 
 function renderEmptyFixtures() {
@@ -716,11 +891,12 @@ function renderEmptyFixtures() {
 
 function openScoreModal(match) {
     document.getElementById('modalMatchId').value = match.id;
-    document.getElementById('modalMatchTitle').innerText = `Match #${match.match_number} [${match.format} Format]`;
-    document.getElementById('modalTeamAName').innerText = match.team_a_name;
-    document.getElementById('modalTeamBName').innerText = match.team_b_name;
-    document.getElementById('modalInnings1Label').innerText = match.team_a_name;
-    document.getElementById('modalInnings2Label').innerText = match.team_b_name;
+    const stagePrefix = match.stage ? `[${match.stage}] ` : '';
+    document.getElementById('modalMatchTitle').innerText = `${stagePrefix}Match #${match.match_number} [${match.format} Format]`;
+    document.getElementById('modalTeamAName').innerText = match.team_a_name || 'Team A';
+    document.getElementById('modalTeamBName').innerText = match.team_b_name || 'Team B';
+    document.getElementById('modalInnings1Label').innerText = match.team_a_name || 'Team A';
+    document.getElementById('modalInnings2Label').innerText = match.team_b_name || 'Team B';
 
     // Prefill scores if editing
     document.getElementById('scoreA').value = match.score_a !== null ? match.score_a : '';
@@ -741,7 +917,7 @@ function closeScoreModal() {
 }
 
 // ============================================================================
-// POINTS TABLE LOADER
+// POINTS TABLE LOADER & NET RUN RATE (NRR)
 // ============================================================================
 
 async function loadStandings(tourneyId) {
@@ -749,7 +925,7 @@ async function loadStandings(tourneyId) {
     const headerDiv = document.getElementById('standingsTourneyHeader');
     if (!tbody) return;
 
-    tbody.innerHTML = `<tr><td colspan="7" class="text-center">⏳ Calculating standings...</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="8" class="text-center">⏳ Calculating Net Run Rate and standings...</td></tr>`;
 
     try {
         const res = await fetch(`/api/tournaments/${tourneyId}/standings`);
@@ -761,16 +937,16 @@ async function loadStandings(tourneyId) {
             if (headerDiv) {
                 headerDiv.innerHTML = `
                     <h3>${escapeHtml(tourney.name)} - Standings</h3>
-                    <small class="text-muted">Format: ${tourney.format}</small>
+                    <small class="text-muted">Format: ${tourney.format} • Net Run Rate (NRR) Calculated</small>
                 `;
             }
 
             renderStandingsTable(standings);
         } else {
-            tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted">${data.message}</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="8" class="text-center text-muted">${data.message}</td></tr>`;
         }
     } catch (err) {
-        tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted">Error: ${err.message}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="8" class="text-center text-muted">Error: ${err.message}</td></tr>`;
     }
 }
 
@@ -779,7 +955,7 @@ function renderStandingsTable(standings) {
     if (!tbody) return;
 
     if (standings.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted">No teams in this tournament.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="8" class="text-center text-muted">No teams in this tournament.</td></tr>`;
         return;
     }
 
@@ -789,15 +965,27 @@ function renderStandingsTable(standings) {
         else if (row.rank === 2) rankClass += ' rank-2';
         else if (row.rank === 3) rankClass += ' rank-3';
 
+        const nrrVal = (typeof row.nrr === 'number') ? row.nrr : 0.0;
+        let nrrStr = (nrrVal > 0 ? '+' : '') + nrrVal.toFixed(3);
+        let nrrClass = 'nrr-zero';
+        if (nrrVal > 0) nrrClass = 'nrr-pos';
+        else if (nrrVal < 0) nrrClass = 'nrr-neg';
+
+        const isQualified = row.rank <= 4;
+        const qualChip = isQualified
+            ? `<span class="chip" style="font-size:0.68rem; margin-left:6px; background:#fef3c7; color:#b45309; font-weight:700;">Q</span>`
+            : '';
+
         return `
             <tr>
                 <td><span class="${rankClass}">${row.rank}</span></td>
-                <td><strong>${escapeHtml(row.team_name)}</strong> ${row.rank === 1 ? '🥇' : ''}</td>
-                <td>${row.played}</td>
-                <td><span style="color:#16a34a; font-weight:700">${row.won}</span></td>
-                <td><span style="color:#dc2626">${row.lost}</span></td>
-                <td><span style="color:#d97706">${row.tied}</span></td>
-                <td><span style="font-size:1.1rem; color:var(--primary-dark); font-weight:800">${row.points}</span></td>
+                <td><strong>${escapeHtml(row.team_name)}</strong> ${row.rank === 1 ? '🥇' : ''} ${qualChip}</td>
+                <td class="text-center">${row.played}</td>
+                <td class="text-center"><span style="color:#16a34a; font-weight:700">${row.won}</span></td>
+                <td class="text-center"><span style="color:#dc2626">${row.lost}</span></td>
+                <td class="text-center"><span style="color:#d97706">${row.tied}</span></td>
+                <td class="text-center"><span class="${nrrClass}">${nrrStr}</span></td>
+                <td class="text-center"><span style="font-size:1.1rem; color:var(--primary-dark); font-weight:800">${row.points}</span></td>
             </tr>
         `;
     }).join('');
@@ -806,7 +994,339 @@ function renderStandingsTable(standings) {
 function renderEmptyStandings() {
     const tbody = document.querySelector('#tableStandings tbody');
     if (!tbody) return;
-    tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted">Select a tournament above to view its points table.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="8" class="text-center text-muted">Select a tournament above to view its points table.</td></tr>`;
+}
+
+// ============================================================================
+// CREX LIVE SCORECARD MODAL & EDITOR
+// ============================================================================
+
+async function openCrexScorecard(matchId) {
+    try {
+        const res = await fetch(`/api/matches/${matchId}/scorecard`);
+        const data = await res.json();
+        if (res.ok && data.status === 'success') {
+            currentScorecardData = data.data;
+            const m = currentScorecardData.match;
+
+            // Modal Title & Badges
+            document.getElementById('crexModalTitle').innerText = `Match #${m.match_number}: ${m.team_a_name} vs ${m.team_b_name}`;
+            document.getElementById('crexMatchStageBadge').innerText = m.stage || (m.is_playoff ? 'Playoff' : 'Group Match');
+            document.getElementById('crexMatchFormatBadge').innerText = `${m.format} Format`;
+
+            // Team Scores Banner
+            document.getElementById('crexTeamAName').innerText = m.team_a_name;
+            document.getElementById('crexTeamAScore').innerText = `${m.score_a || 0}/${m.wickets_a || 0}`;
+            const rrA = m.overs_a ? (m.score_a / (Math.floor(m.overs_a) + (m.overs_a % 1 * 10) / 6.0)).toFixed(2) : '0.00';
+            document.getElementById('crexTeamARR').innerText = `(${m.overs_a || 0.0} ov) RR: ${rrA}`;
+
+            document.getElementById('crexTeamBName').innerText = m.team_b_name;
+            document.getElementById('crexTeamBScore').innerText = `${m.score_b || 0}/${m.wickets_b || 0}`;
+            const rrB = m.overs_b ? (m.score_b / (Math.floor(m.overs_b) + (m.overs_b % 1 * 10) / 6.0)).toFixed(2) : '0.00';
+            document.getElementById('crexTeamBRR').innerText = `(${m.overs_b || 0.0} ov) RR: ${rrB}`;
+
+            document.getElementById('crexResultDesc').innerText = m.result_description || 'Match Completed';
+
+            // Player of the Match Banner
+            const momBanner = document.getElementById('crexMomBanner');
+            if (m.man_of_match) {
+                document.getElementById('crexMomName').innerText = m.man_of_match;
+                document.getElementById('crexMomPerf').innerText = m.man_of_match_performance || 'Match-winning performance';
+                momBanner.style.display = 'flex';
+            } else {
+                momBanner.style.display = 'none';
+            }
+
+            // Innings Tabs Labels
+            document.getElementById('labelInnings1Tab').innerText = `${m.team_a_name} - ${m.score_a || 0}/${m.wickets_a || 0}`;
+            document.getElementById('labelInnings2Tab').innerText = `${m.team_b_name} - ${m.score_b || 0}/${m.wickets_b || 0}`;
+
+            // Render Innings 1 by default
+            currentInningsView = 1;
+            renderCrexInnings(1);
+            toggleCrexEditor(false);
+
+            const modal = document.getElementById('crexScorecardModal');
+            if (modal) modal.classList.add('show');
+        } else {
+            showToast(data.message || 'Failed to load scorecard.', 'error');
+        }
+    } catch (err) {
+        showToast(`Error: ${err.message}`, 'error');
+    }
+}
+
+function closeCrexModal() {
+    const modal = document.getElementById('crexScorecardModal');
+    if (modal) modal.classList.remove('show');
+    toggleCrexEditor(false);
+}
+
+function switchCrexInnings(innNum) {
+    currentInningsView = innNum;
+    document.getElementById('btnInnings1Tab').classList.toggle('active', innNum === 1);
+    document.getElementById('btnInnings2Tab').classList.toggle('active', innNum === 2);
+    renderCrexInnings(innNum);
+}
+
+function renderCrexInnings(innNum) {
+    if (!currentScorecardData) return;
+    const inn = (innNum === 1) ? currentScorecardData.innings1 : currentScorecardData.innings2;
+    if (!inn) return;
+
+    // Batting Table
+    const batTbody = document.querySelector('#tableCrexBatting tbody');
+    if (batTbody) {
+        if (!inn.batting || inn.batting.length === 0) {
+            batTbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted">No batting data recorded.</td></tr>`;
+        } else {
+            batTbody.innerHTML = inn.batting.map(b => `
+                <tr>
+                    <td><strong>${escapeHtml(b.player_name)}</strong></td>
+                    <td style="color:#64748b; font-size:0.82rem; font-style:italic;">${escapeHtml(b.dismissal)}</td>
+                    <td class="text-right"><strong>${b.runs}</strong></td>
+                    <td class="text-right" style="color:#64748b;">${b.balls}</td>
+                    <td class="text-right">${b.fours}</td>
+                    <td class="text-right">${b.sixes}</td>
+                    <td class="text-right" style="font-weight:600; color:#0f766e;">${b.strike_rate}</td>
+                </tr>
+            `).join('');
+        }
+    }
+
+    // Extras & Totals
+    document.getElementById('crexExtras').innerText = inn.extras || 0;
+    document.getElementById('crexTotalScore').innerText = `${inn.score || 0}/${inn.wickets || 0}`;
+    document.getElementById('crexTotalOvers').innerText = `(${inn.overs || 0.0} Ov, RR: ${inn.run_rate || 0.0})`;
+
+    // Did Not Bat
+    const dnbRow = document.getElementById('crexYetToBatRow');
+    const dnbSpan = document.getElementById('crexYetToBat');
+    if (inn.did_not_bat && inn.did_not_bat.length > 0) {
+        dnbSpan.innerText = inn.did_not_bat.join(', ');
+        dnbRow.style.display = 'block';
+    } else {
+        dnbRow.style.display = 'none';
+    }
+
+    // Bowling Table
+    const bowlTbody = document.querySelector('#tableCrexBowling tbody');
+    if (bowlTbody) {
+        if (!inn.bowling || inn.bowling.length === 0) {
+            bowlTbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted">No bowling figures recorded.</td></tr>`;
+        } else {
+            bowlTbody.innerHTML = inn.bowling.map(b => `
+                <tr>
+                    <td><strong>${escapeHtml(b.player_name)}</strong></td>
+                    <td class="text-right">${b.overs_bowled}</td>
+                    <td class="text-right">${b.maidens}</td>
+                    <td class="text-right">${b.runs_conceded}</td>
+                    <td class="text-right"><strong style="color:#7c3aed; font-size:1.05rem;">${b.wickets}</strong></td>
+                    <td class="text-right" style="font-weight:600; color:#0f766e;">${b.economy}</td>
+                    <td class="text-right" style="color:#64748b;">${b.dot_balls}</td>
+                </tr>
+            `).join('');
+        }
+    }
+}
+
+function toggleCrexEditor(forceState) {
+    const editor = document.getElementById('crexEditorSection');
+    const innContent = document.getElementById('crexInningsContent');
+    const btn = document.getElementById('btnToggleEditCrex');
+    if (!editor || !currentScorecardData) return;
+
+    const show = (forceState !== undefined) ? forceState : (editor.style.display === 'none');
+    editor.style.display = show ? 'block' : 'none';
+    innContent.style.display = show ? 'none' : 'block';
+    if (btn) btn.innerText = show ? '👁️ View Scorecard' : '✏️ Edit Player Scores';
+
+    if (show) {
+        renderCrexEditorTables();
+    }
+}
+
+function renderCrexEditorTables() {
+    const container = document.getElementById('crexEditorTablesContainer');
+    if (!container || !currentScorecardData) return;
+
+    const inn1 = currentScorecardData.innings1;
+    const inn2 = currentScorecardData.innings2;
+
+    container.innerHTML = `
+        <h5 style="margin-bottom:0.5rem; color:var(--primary-dark);">Innings 1 (${inn1.team_name}) - Batting & Bowling</h5>
+        <div style="overflow-x:auto;">
+            <table class="data-table crex-editor-table">
+                <thead>
+                    <tr><th>Player</th><th>Runs</th><th>Balls</th><th>4s</th><th>6s</th><th>Dismissal</th><th>Overs</th><th>Maidens</th><th>R Conceded</th><th>Wkts</th></tr>
+                </thead>
+                <tbody>
+                    ${inn1.batting.map((b, i) => `
+                        <tr data-inn="1" data-player-id="${b.player_id}" data-team-id="${inn1.team_id}" data-name="${escapeHtml(b.player_name)}">
+                            <td>${escapeHtml(b.player_name)}</td>
+                            <td><input type="number" class="inp-runs" value="${b.runs}"></td>
+                            <td><input type="number" class="inp-balls" value="${b.balls}"></td>
+                            <td><input type="number" class="inp-fours" value="${b.fours}"></td>
+                            <td><input type="number" class="inp-sixes" value="${b.sixes}"></td>
+                            <td><input type="text" class="inp-dismissal" value="${escapeHtml(b.dismissal)}"></td>
+                            <td><input type="number" step="0.1" class="inp-overs" value="0.0"></td>
+                            <td><input type="number" class="inp-maidens" value="0"></td>
+                            <td><input type="number" class="inp-rc" value="0"></td>
+                            <td><input type="number" class="inp-wkts" value="0"></td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        </div>
+
+        <h5 style="margin-top:1.25rem; margin-bottom:0.5rem; color:var(--primary-dark);">Innings 2 (${inn2.team_name}) - Batting & Bowling</h5>
+        <div style="overflow-x:auto;">
+            <table class="data-table crex-editor-table">
+                <thead>
+                    <tr><th>Player</th><th>Runs</th><th>Balls</th><th>4s</th><th>6s</th><th>Dismissal</th><th>Overs</th><th>Maidens</th><th>R Conceded</th><th>Wkts</th></tr>
+                </thead>
+                <tbody>
+                    ${inn2.batting.map((b, i) => `
+                        <tr data-inn="2" data-player-id="${b.player_id}" data-team-id="${inn2.team_id}" data-name="${escapeHtml(b.player_name)}">
+                            <td>${escapeHtml(b.player_name)}</td>
+                            <td><input type="number" class="inp-runs" value="${b.runs}"></td>
+                            <td><input type="number" class="inp-balls" value="${b.balls}"></td>
+                            <td><input type="number" class="inp-fours" value="${b.fours}"></td>
+                            <td><input type="number" class="inp-sixes" value="${b.sixes}"></td>
+                            <td><input type="text" class="inp-dismissal" value="${escapeHtml(b.dismissal)}"></td>
+                            <td><input type="number" step="0.1" class="inp-overs" value="0.0"></td>
+                            <td><input type="number" class="inp-maidens" value="0"></td>
+                            <td><input type="number" class="inp-rc" value="0"></td>
+                            <td><input type="number" class="inp-wkts" value="0"></td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        </div>
+    `;
+}
+
+async function saveCrexEditorScores() {
+    if (!currentScorecardData) return;
+    const matchId = currentScorecardData.match.id;
+
+    const rows = document.querySelectorAll('#crexEditorTablesContainer tr[data-player-id]');
+    const performances = [];
+
+    rows.forEach(r => {
+        performances.push({
+            team_id: parseInt(r.dataset.teamId),
+            player_id: parseInt(r.dataset.playerId),
+            player_name: r.dataset.name,
+            innings: parseInt(r.dataset.inn),
+            runs: parseInt(r.querySelector('.inp-runs')?.value || 0),
+            balls: parseInt(r.querySelector('.inp-balls')?.value || 0),
+            fours: parseInt(r.querySelector('.inp-fours')?.value || 0),
+            sixes: parseInt(r.querySelector('.inp-sixes')?.value || 0),
+            dismissal: r.querySelector('.inp-dismissal')?.value || 'not out',
+            is_out: (r.querySelector('.inp-dismissal')?.value || 'not out').toLowerCase() !== 'not out' ? 1 : 0,
+            overs_bowled: parseFloat(r.querySelector('.inp-overs')?.value || 0.0),
+            maidens: parseInt(r.querySelector('.inp-maidens')?.value || 0),
+            runs_conceded: parseInt(r.querySelector('.inp-rc')?.value || 0),
+            wickets: parseInt(r.querySelector('.inp-wkts')?.value || 0)
+        });
+    });
+
+    try {
+        const res = await fetch(`/api/matches/${matchId}/scorecard`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ performances })
+        });
+        const data = await res.json();
+        if (res.ok && data.status === 'success') {
+            showToast('Player scorecard updated successfully!', 'success');
+            currentScorecardData = data.data;
+            toggleCrexEditor(false);
+            renderCrexInnings(currentInningsView);
+        } else {
+            showToast(data.message || 'Failed to update scorecard.', 'error');
+        }
+    } catch (err) {
+        showToast(`Error: ${err.message}`, 'error');
+    }
+}
+
+// ============================================================================
+// CREX STATS HUB (ORANGE & PURPLE CAP)
+// ============================================================================
+
+async function loadCrexStats(tourneyId) {
+    const tableOrange = document.querySelector('#tableOrangeCap tbody');
+    const tablePurple = document.querySelector('#tablePurpleCap tbody');
+
+    if (tableOrange) tableOrange.innerHTML = `<tr><td colspan="8" class="text-center">⏳ Loading stats...</td></tr>`;
+    if (tablePurple) tablePurple.innerHTML = `<tr><td colspan="8" class="text-center">⏳ Loading stats...</td></tr>`;
+
+    try {
+        const res = await fetch(`/api/tournaments/${tourneyId}/crex-stats`);
+        const data = await res.json();
+        if (res.ok && data.status === 'success') {
+            renderCrexStats(data.data);
+        } else {
+            renderEmptyCrexStats(data.message);
+        }
+    } catch (err) {
+        renderEmptyCrexStats(err.message);
+    }
+}
+
+function renderCrexStats(stats) {
+    const tableOrange = document.querySelector('#tableOrangeCap tbody');
+    const tablePurple = document.querySelector('#tablePurpleCap tbody');
+
+    const orangeList = stats.orange_cap || [];
+    const purpleList = stats.purple_cap || [];
+
+    if (tableOrange) {
+        if (orangeList.length === 0) {
+            tableOrange.innerHTML = `<tr><td colspan="8" class="text-center text-muted">No batting statistics available yet. Complete matches to see leaders.</td></tr>`;
+        } else {
+            tableOrange.innerHTML = orangeList.map((p, idx) => `
+                <tr>
+                    <td><span class="rank-badge ${idx === 0 ? 'rank-1' : ''}">${p.rank}</span></td>
+                    <td><strong>${escapeHtml(p.player_name)}</strong> ${idx === 0 ? '🧡' : ''}</td>
+                    <td><span class="badge badge-primary">${escapeHtml(p.team_name)}</span></td>
+                    <td class="text-right"><strong style="color:#c2410c; font-size:1.1rem;">${p.runs}</strong></td>
+                    <td class="text-right" style="color:#64748b;">${p.balls}</td>
+                    <td class="text-right">${p.fours}</td>
+                    <td class="text-right">${p.sixes}</td>
+                    <td class="text-right" style="color:#0f766e; font-weight:700;">${p.strike_rate}</td>
+                </tr>
+            `).join('');
+        }
+    }
+
+    if (tablePurple) {
+        if (purpleList.length === 0) {
+            tablePurple.innerHTML = `<tr><td colspan="8" class="text-center text-muted">No bowling statistics available yet. Complete matches to see leaders.</td></tr>`;
+        } else {
+            tablePurple.innerHTML = purpleList.map((p, idx) => `
+                <tr>
+                    <td><span class="rank-badge ${idx === 0 ? 'rank-1' : ''}">${p.rank}</span></td>
+                    <td><strong>${escapeHtml(p.player_name)}</strong> ${idx === 0 ? '💜' : ''}</td>
+                    <td><span class="badge badge-primary">${escapeHtml(p.team_name)}</span></td>
+                    <td class="text-right"><strong style="color:#6d28d9; font-size:1.1rem;">${p.wickets}</strong></td>
+                    <td class="text-right">${p.overs}</td>
+                    <td class="text-right">${p.maidens}</td>
+                    <td class="text-right" style="color:#64748b;">${p.runs_conceded}</td>
+                    <td class="text-right" style="color:#0f766e; font-weight:700;">${p.economy}</td>
+                </tr>
+            `).join('');
+        }
+    }
+}
+
+function renderEmptyCrexStats(msg = 'Select a tournament above to view player leaderboards.') {
+    const tableOrange = document.querySelector('#tableOrangeCap tbody');
+    const tablePurple = document.querySelector('#tablePurpleCap tbody');
+    if (tableOrange) tableOrange.innerHTML = `<tr><td colspan="8" class="text-center text-muted">${escapeHtml(msg)}</td></tr>`;
+    if (tablePurple) tablePurple.innerHTML = `<tr><td colspan="8" class="text-center text-muted">${escapeHtml(msg)}</td></tr>`;
 }
 
 // ============================================================================

@@ -164,6 +164,12 @@ def mirrored_cpp_engine_logic(command: str, payload: Dict[str, Any]) -> Dict[str
     elif command in ("--points-table", "--standings", "-p"):
         teams = payload.get("teams", [])
         matches = payload.get("matches", [])
+        format_ = payload.get("format", "T20").upper()
+        max_overs = 20.0
+        if format_ == "ODI":
+            max_overs = 50.0
+        elif format_ == "TEST":
+            max_overs = 90.0
 
         standings = {}
         for t in teams:
@@ -174,34 +180,85 @@ def mirrored_cpp_engine_logic(command: str, payload: Dict[str, Any]) -> Dict[str
                 "won": 0,
                 "lost": 0,
                 "tied": 0,
-                "points": 0
+                "points": 0,
+                "nrr": 0.0,
+                "runs_scored": 0,
+                "overs_faced": 0.0,
+                "runs_conceded": 0,
+                "overs_bowled": 0.0
             }
 
+        def to_decimal_overs(overs_val: float) -> float:
+            full_overs = int(overs_val)
+            fraction = overs_val - full_overs
+            balls = round(fraction * 10.0)
+            if balls >= 6:
+                full_overs += balls // 6
+                balls = balls % 6
+            return full_overs + (balls / 6.0)
+
         for m in matches:
-            if not m.get("is_completed", True):
+            if not m.get("is_completed", True) or m.get("is_playoff", False):
                 continue
             ta_id = m.get("team_a_id")
             tb_id = m.get("team_b_id")
             if ta_id in standings and tb_id in standings:
-                standings[ta_id]["played"] += 1
-                standings[tb_id]["played"] += 1
+                team_a = standings[ta_id]
+                team_b = standings[tb_id]
+                team_a["played"] += 1
+                team_b["played"] += 1
                 if m.get("is_tie", False):
-                    standings[ta_id]["tied"] += 1
-                    standings[ta_id]["points"] += 1
-                    standings[tb_id]["tied"] += 1
-                    standings[tb_id]["points"] += 1
+                    team_a["tied"] += 1
+                    team_a["points"] += 1
+                    team_b["tied"] += 1
+                    team_b["points"] += 1
                 elif m.get("winner_id") == ta_id:
-                    standings[ta_id]["won"] += 1
-                    standings[ta_id]["points"] += 2
-                    standings[tb_id]["lost"] += 1
+                    team_a["won"] += 1
+                    team_a["points"] += 2
+                    team_b["lost"] += 1
                 elif m.get("winner_id") == tb_id:
-                    standings[tb_id]["won"] += 1
-                    standings[tb_id]["points"] += 2
-                    standings[ta_id]["lost"] += 1
+                    team_b["won"] += 1
+                    team_b["points"] += 2
+                    team_a["lost"] += 1
 
-        # Sort criteria: 1. Points desc, 2. Wins desc, 3. Team name asc
+                # Net Run Rate calculation
+                score_a = int(m.get("score_a", 0) or 0)
+                wickets_a = int(m.get("wickets_a", 0) or 0)
+                raw_ov_a = float(m.get("overs_a", 0.0) or 0.0)
+                eff_ov_a = to_decimal_overs(raw_ov_a)
+                if wickets_a >= 10 and max_overs > 0.0 and format_ != "TEST":
+                    eff_ov_a = max_overs
+                if eff_ov_a <= 0.0:
+                    eff_ov_a = raw_ov_a if raw_ov_a > 0.0 else max_overs
+
+                score_b = int(m.get("score_b", 0) or 0)
+                wickets_b = int(m.get("wickets_b", 0) or 0)
+                raw_ov_b = float(m.get("overs_b", 0.0) or 0.0)
+                eff_ov_b = to_decimal_overs(raw_ov_b)
+                if wickets_b >= 10 and max_overs > 0.0 and format_ != "TEST":
+                    eff_ov_b = max_overs
+                if eff_ov_b <= 0.0:
+                    eff_ov_b = raw_ov_b if raw_ov_b > 0.0 else max_overs
+
+                team_a["runs_scored"] += score_a
+                team_a["overs_faced"] += eff_ov_a
+                team_a["runs_conceded"] += score_b
+                team_a["overs_bowled"] += eff_ov_b
+
+                team_b["runs_scored"] += score_b
+                team_b["overs_faced"] += eff_ov_b
+                team_b["runs_conceded"] += score_a
+                team_b["overs_bowled"] += eff_ov_a
+
+        # Compute NRR for each team
+        for s in standings.values():
+            rf = (s["runs_scored"] / s["overs_faced"]) if s["overs_faced"] > 0 else 0.0
+            ra = (s["runs_conceded"] / s["overs_bowled"]) if s["overs_bowled"] > 0 else 0.0
+            s["nrr"] = round(rf - ra, 3)
+
+        # Sort criteria: 1. Points desc, 2. Wins desc, 3. NRR desc, 4. Team name asc
         table = list(standings.values())
-        table.sort(key=lambda x: (-x["points"], -x["won"], x["team_name"].lower()))
+        table.sort(key=lambda x: (-x["points"], -x["won"], -x["nrr"], x["team_name"].lower()))
 
         for rank, row in enumerate(table, start=1):
             row["rank"] = rank
@@ -212,6 +269,104 @@ def mirrored_cpp_engine_logic(command: str, payload: Dict[str, Any]) -> Dict[str
             "tournament_name": payload.get("tournament_name", "Tournament"),
             "format": payload.get("format", "T20"),
             "points_table": table,
+            "engine_source": "C++ OOP Engine (Mirrored Fallback)"
+        }
+
+    elif command in ("--qualifiers", "-q"):
+        standings = payload.get("standings", [])
+        starting_match_number = int(payload.get("starting_match_number", 1))
+        qualifiers = []
+        m_num = starting_match_number
+
+        if len(standings) >= 4:
+            qualifiers.append({
+                "match_number": m_num,
+                "stage": "Qualifier 1",
+                "team_a_id": standings[0]["team_id"],
+                "team_a_name": standings[0]["team_name"],
+                "team_b_id": standings[1]["team_id"],
+                "team_b_name": standings[1]["team_name"],
+                "team_a_source": "Rank 1",
+                "team_b_source": "Rank 2",
+                "description": "Winner advances to Grand Final; Loser to Qualifier 2."
+            })
+            m_num += 1
+            qualifiers.append({
+                "match_number": m_num,
+                "stage": "Eliminator",
+                "team_a_id": standings[2]["team_id"],
+                "team_a_name": standings[2]["team_name"],
+                "team_b_id": standings[3]["team_id"],
+                "team_b_name": standings[3]["team_name"],
+                "team_a_source": "Rank 3",
+                "team_b_source": "Rank 4",
+                "description": "Winner advances to Qualifier 2; Loser is eliminated."
+            })
+            m_num += 1
+            qualifiers.append({
+                "match_number": m_num,
+                "stage": "Qualifier 2",
+                "team_a_id": standings[1]["team_id"],
+                "team_a_name": f"{standings[1]['team_name']} (Loser Q1)",
+                "team_b_id": standings[2]["team_id"],
+                "team_b_name": f"{standings[2]['team_name']} (Winner Elim)",
+                "team_a_source": "Loser Q1",
+                "team_b_source": "Winner Eliminator",
+                "description": "Winner advances to Grand Final; Loser is eliminated."
+            })
+            m_num += 1
+            qualifiers.append({
+                "match_number": m_num,
+                "stage": "Final",
+                "team_a_id": standings[0]["team_id"],
+                "team_a_name": f"{standings[0]['team_name']} (Winner Q1)",
+                "team_b_id": standings[1]["team_id"],
+                "team_b_name": f"{standings[1]['team_name']} (Winner Q2)",
+                "team_a_source": "Winner Q1",
+                "team_b_source": "Winner Q2",
+                "description": "Grand Finale - Winner is crowned Tournament Champion!"
+            })
+        elif len(standings) == 3:
+            qualifiers.append({
+                "match_number": m_num,
+                "stage": "Qualifier",
+                "team_a_id": standings[1]["team_id"],
+                "team_a_name": standings[1]["team_name"],
+                "team_b_id": standings[2]["team_id"],
+                "team_b_name": standings[2]["team_name"],
+                "team_a_source": "Rank 2",
+                "team_b_source": "Rank 3",
+                "description": "Winner advances to Grand Final."
+            })
+            m_num += 1
+            qualifiers.append({
+                "match_number": m_num,
+                "stage": "Final",
+                "team_a_id": standings[0]["team_id"],
+                "team_a_name": standings[0]["team_name"],
+                "team_b_id": standings[1]["team_id"],
+                "team_b_name": f"{standings[1]['team_name']} (Winner Qualifier)",
+                "team_a_source": "Rank 1",
+                "team_b_source": "Winner Qualifier",
+                "description": "Grand Finale - Winner is crowned Tournament Champion!"
+            })
+        elif len(standings) == 2:
+            qualifiers.append({
+                "match_number": m_num,
+                "stage": "Final",
+                "team_a_id": standings[0]["team_id"],
+                "team_a_name": standings[0]["team_name"],
+                "team_b_id": standings[1]["team_id"],
+                "team_b_name": standings[1]["team_name"],
+                "team_a_source": "Rank 1",
+                "team_b_source": "Rank 2",
+                "description": "Grand Finale - Winner is crowned Tournament Champion!"
+            })
+
+        return {
+            "status": "success",
+            "tournament_id": payload.get("tournament_id", 1),
+            "qualifiers": qualifiers,
             "engine_source": "C++ OOP Engine (Mirrored Fallback)"
         }
 
@@ -485,7 +640,7 @@ def get_tournament_standings(tournament_id):
 
         matches = database.get_tournament_matches(tournament_id)
 
-        # Build payload for C++ Engine
+        # Build payload for C++ Engine with full overs and wickets for Net Run Rate (NRR)
         engine_payload = {
             "tournament_id": tourney["id"],
             "tournament_name": tourney["name"],
@@ -497,6 +652,12 @@ def get_tournament_standings(tournament_id):
                     "team_b_id": m["team_b_id"],
                     "score_a": m["score_a"] or 0,
                     "score_b": m["score_b"] or 0,
+                    "wickets_a": m.get("wickets_a", 0) or 0,
+                    "wickets_b": m.get("wickets_b", 0) or 0,
+                    "overs_a": m.get("overs_a", 0.0) or 0.0,
+                    "overs_b": m.get("overs_b", 0.0) or 0.0,
+                    "stage": m.get("stage", "Group"),
+                    "is_playoff": bool(m.get("is_playoff", False)),
                     "winner_id": m["winner_id"] or 0,
                     "is_tie": bool(m["is_tie"]),
                     "is_completed": (m["status"] == "Completed")
@@ -505,7 +666,7 @@ def get_tournament_standings(tournament_id):
             ]
         }
 
-        # Invoke C++ OOP Engine to calculate points table with strict ranking rules
+        # Invoke C++ OOP Engine to calculate points table with ICC ranking rules & NRR
         engine_response = run_cpp_engine("--points-table", engine_payload)
 
         if engine_response.get("status") == "success":
@@ -524,12 +685,132 @@ def get_tournament_standings(tournament_id):
         return jsonify({"status": "error", "message": str(e)}), 500
 
 # ============================================================================
+# PLAYOFFS & QUALIFIER MATCHES API
+# ============================================================================
+
+@app.route("/api/tournaments/<int:tournament_id>/qualifiers/generate", methods=["POST"])
+def generate_tournament_qualifiers(tournament_id):
+    """
+    Generates IPL / ICC style Qualifier & Playoff fixtures based on the top 4 teams
+    from the tournament points table (Qualifier 1, Eliminator, Qualifier 2, Final).
+    """
+    try:
+        tourney = database.get_tournament_by_id(tournament_id)
+        if not tourney:
+            return jsonify({"status": "error", "message": "Tournament not found."}), 404
+
+        matches = database.get_tournament_matches(tournament_id)
+
+        # 1. Fetch current standings from C++ engine to get accurate top teams
+        standings_payload = {
+            "tournament_id": tourney["id"],
+            "tournament_name": tourney["name"],
+            "format": tourney["format"],
+            "teams": tourney["teams"],
+            "matches": [
+                {
+                    "team_a_id": m["team_a_id"],
+                    "team_b_id": m["team_b_id"],
+                    "score_a": m["score_a"] or 0,
+                    "score_b": m["score_b"] or 0,
+                    "wickets_a": m.get("wickets_a", 0) or 0,
+                    "wickets_b": m.get("wickets_b", 0) or 0,
+                    "overs_a": m.get("overs_a", 0.0) or 0.0,
+                    "overs_b": m.get("overs_b", 0.0) or 0.0,
+                    "stage": m.get("stage", "Group"),
+                    "is_playoff": bool(m.get("is_playoff", False)),
+                    "winner_id": m["winner_id"] or 0,
+                    "is_tie": bool(m["is_tie"]),
+                    "is_completed": (m["status"] == "Completed")
+                }
+                for m in matches
+            ]
+        }
+        standings_response = run_cpp_engine("--points-table", standings_payload)
+        standings = standings_response.get("points_table", [])
+
+        if len(standings) < 2:
+            return jsonify({"status": "error", "message": "At least two teams are required to generate qualifier fixtures."}), 400
+
+        # Number qualifier matches after group matches
+        group_matches = [m for m in matches if not m.get("is_playoff", False)]
+        max_num = max([m["match_number"] for m in group_matches], default=0)
+
+        qualifier_payload = {
+            "tournament_id": tourney["id"],
+            "tournament_name": tourney["name"],
+            "format": tourney["format"],
+            "starting_match_number": max_num + 1,
+            "standings": standings
+        }
+
+        engine_response = run_cpp_engine("--qualifiers", qualifier_payload)
+        if engine_response.get("status") == "success":
+            qualifiers = engine_response.get("qualifiers", [])
+            database.save_qualifier_fixtures(tourney["id"], tourney["format"], qualifiers)
+            return jsonify({
+                "status": "success",
+                "message": f"Successfully generated {len(qualifiers)} Playoff / Qualifier matches!",
+                "data": qualifiers,
+                "engine_source": engine_response.get("engine_source")
+            }), 201
+        else:
+            return jsonify({"status": "error", "message": "Failed to generate qualifier fixtures."}), 500
+
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+@app.route("/api/tournaments/<int:tournament_id>/qualifiers", methods=["GET"])
+def get_tournament_qualifiers(tournament_id):
+    try:
+        all_matches = database.get_tournament_matches(tournament_id)
+        playoffs = [m for m in all_matches if m.get("is_playoff", False)]
+        return jsonify({"status": "success", "data": playoffs})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+# ============================================================================
+# CREX SCORECARD & INDIVIDUAL PLAYER SCORES API
+# ============================================================================
+
+@app.route("/api/matches/<int:match_id>/scorecard", methods=["GET"])
+def get_match_scorecard(match_id):
+    """Retrieves full CREX-style individual player scorecard (Batting & Bowling)."""
+    try:
+        scorecard = database.get_match_scorecard(match_id)
+        return jsonify({"status": "success", "data": scorecard})
+    except ValueError as e:
+        return jsonify({"status": "error", "message": str(e)}), 404
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+@app.route("/api/matches/<int:match_id>/scorecard", methods=["POST"])
+def update_match_scorecard(match_id):
+    """Allows users to customize and persist individual player scores."""
+    try:
+        data = request.get_json() or {}
+        database.save_match_scorecard(match_id, data)
+        scorecard = database.get_match_scorecard(match_id)
+        return jsonify({"status": "success", "data": scorecard})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+@app.route("/api/tournaments/<int:tournament_id>/crex-stats", methods=["GET"])
+def get_tournament_crex_stats(tournament_id):
+    """Returns CREX app leaderboards: Orange Cap (Most Runs) and Purple Cap (Most Wickets)."""
+    try:
+        stats = database.get_tournament_player_stats(tournament_id)
+        return jsonify({"status": "success", "data": stats})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+# ============================================================================
 # DEMO SEED DATA (HELPFUL FOR COLLEGE PRESENTATION & EVALUATION)
 # ============================================================================
 
 @app.route("/api/demo/seed", methods=["POST"])
 def seed_demo_data():
-    """Populates standard international cricket teams and players for quick demonstration."""
+    """Populates standard international cricket teams, players, and sample matches for quick demonstration."""
     try:
         sample_teams = [
             {
@@ -537,27 +818,36 @@ def seed_demo_data():
                 "players": [
                     ("Rohit Sharma", "Batter"),
                     ("Virat Kohli", "Batter"),
+                    ("Suryakumar Yadav", "Batter"),
+                    ("Rishabh Pant", "Wicket-keeper"),
                     ("Hardik Pandya", "All-rounder"),
+                    ("Ravindra Jadeja", "All-rounder"),
                     ("Jasprit Bumrah", "Bowler"),
-                    ("Rishabh Pant", "Wicket-keeper")
+                    ("Mohammed Siraj", "Bowler")
                 ]
             },
             {
                 "name": "Australia",
                 "players": [
-                    ("Pat Cummins", "Bowler"),
                     ("Travis Head", "Batter"),
+                    ("David Warner", "Batter"),
                     ("Glenn Maxwell", "All-rounder"),
+                    ("Marcus Stoinis", "All-rounder"),
+                    ("Josh Inglis", "Wicket-keeper"),
+                    ("Pat Cummins", "Bowler"),
                     ("Mitchell Starc", "Bowler"),
-                    ("Josh Inglis", "Wicket-keeper")
+                    ("Adam Zampa", "Bowler")
                 ]
             },
             {
                 "name": "England",
                 "players": [
                     ("Jos Buttler", "Wicket-keeper"),
+                    ("Phil Salt", "Batter"),
                     ("Harry Brook", "Batter"),
+                    ("Liam Livingstone", "Batter"),
                     ("Ben Stokes", "All-rounder"),
+                    ("Sam Curran", "All-rounder"),
                     ("Jofra Archer", "Bowler"),
                     ("Adil Rashid", "Bowler")
                 ]
@@ -565,11 +855,14 @@ def seed_demo_data():
             {
                 "name": "South Africa",
                 "players": [
+                    ("Quinton de Kock", "Wicket-keeper"),
                     ("Aiden Markram", "Batter"),
-                    ("Heinrich Klaasen", "Wicket-keeper"),
+                    ("Heinrich Klaasen", "Batter"),
+                    ("David Miller", "Batter"),
                     ("Marco Jansen", "All-rounder"),
+                    ("Keshav Maharaj", "Bowler"),
                     ("Kagiso Rabada", "Bowler"),
-                    ("David Miller", "Batter")
+                    ("Anrich Nortje", "Bowler")
                 ]
             }
         ]
@@ -585,12 +878,21 @@ def seed_demo_data():
                 # Team may already exist
                 existing = [x for x in database.get_all_teams() if x["name"].lower() == t_info["name"].lower()]
                 if existing:
-                    created_team_ids.append(existing[0]["id"])
+                    t_id = existing[0]["id"]
+                    created_team_ids.append(t_id)
+                    # Add any missing players
+                    curr_players = [p["name"].lower() for p in database.get_all_players(t_id)]
+                    for p_name, p_role in t_info["players"]:
+                        if p_name.lower() not in curr_players:
+                            try:
+                                database.add_player(p_name, p_role, t_id)
+                            except Exception:
+                                pass
 
         # Auto-create sample tournament if none exists
         tourneys = database.get_all_tournaments()
         if not tourneys and len(created_team_ids) >= 4:
-            tourney = database.create_tournament("ICC Super 4 Champions Cup", "T20", created_team_ids[:4])
+            tourney = database.create_tournament("ICC T20 Super Cup 2026", "T20", created_team_ids[:4])
             engine_payload = {
                 "tournament_id": tourney["id"],
                 "tournament_name": tourney["name"],
@@ -601,7 +903,37 @@ def seed_demo_data():
             if engine_response.get("status") == "success":
                 database.save_tournament_fixtures(tourney["id"], "T20", engine_response["fixtures"])
 
-        return jsonify({"status": "success", "message": "Demo sample teams, players, and fixtures initialized!"})
+                # Seed sample match scores for the first 4 matches for instant live demo
+                fixtures = database.get_tournament_matches(tourney["id"])
+                simulated_scores = [
+                    {"score_a": 192, "wickets_a": 5, "overs_a": 20.0, "score_b": 186, "wickets_b": 8, "overs_b": 20.0},
+                    {"score_a": 174, "wickets_a": 7, "overs_a": 20.0, "score_b": 175, "wickets_b": 4, "overs_b": 19.1},
+                    {"score_a": 185, "wickets_a": 4, "overs_a": 20.0, "score_b": 142, "wickets_b": 10, "overs_b": 17.4},
+                    {"score_a": 204, "wickets_a": 3, "overs_a": 20.0, "score_b": 168, "wickets_b": 9, "overs_b": 20.0}
+                ]
+                for idx, s in enumerate(simulated_scores):
+                    if idx < len(fixtures):
+                        m = fixtures[idx]
+                        score_a = s["score_a"]
+                        score_b = s["score_b"]
+                        winner_id = m["team_a_id"] if score_a > score_b else (m["team_b_id"] if score_b > score_a else None)
+                        w_name = m["team_a_name"] if winner_id == m["team_a_id"] else m["team_b_name"]
+                        margin = abs(score_a - score_b)
+                        desc = f"{w_name} won by {margin} runs (T20)" if winner_id == m["team_a_id"] else f"{w_name} won by {10 - s['wickets_b']} wickets (T20)"
+                        database.update_match_result(
+                            match_id=m["id"],
+                            score_a=score_a,
+                            wickets_a=s["wickets_a"],
+                            overs_a=s["overs_a"],
+                            score_b=score_b,
+                            wickets_b=s["wickets_b"],
+                            overs_b=s["overs_b"],
+                            winner_id=winner_id,
+                            is_tie=False,
+                            result_description=desc
+                        )
+
+        return jsonify({"status": "success", "message": "Demo sample teams, players, fixtures & Crex scorecards initialized!"})
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 

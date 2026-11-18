@@ -942,4 +942,385 @@ select:focus {
 .flex-wrap { flex-wrap: wrap; }
 .gap-2 { gap: 0.5rem; }
 .text-center { text-align: center; }
+.text-right { text-align: right; }
 .text-muted { color: var(--text-muted); }
+
+/* ==========================================================================
+   Net Run Rate (NRR) & Points Table Enhancements
+   ========================================================================== */
+
+.nrr-pos {
+    color: #16a34a;
+    font-weight: 700;
+    font-family: var(--font-heading);
+}
+
+.nrr-neg {
+    color: #dc2626;
+    font-weight: 700;
+    font-family: var(--font-heading);
+}
+
+.nrr-zero {
+    color: #64748b;
+    font-weight: 600;
+    font-family: var(--font-heading);
+}
+
+/* ==========================================================================
+   Playoffs / Qualifier Matches & Brackets
+   ========================================================================== */
+
+.fixtures-filter-bar {
+    background: #ffffff;
+    padding: 0.75rem 1rem;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-color);
+    box-shadow: var(--shadow-sm);
+}
+
+.filter-pill-group {
+    display: inline-flex;
+    background: #f1f5f9;
+    padding: 0.25rem;
+    border-radius: var(--radius-lg);
+    gap: 0.25rem;
+}
+
+.filter-pill {
+    border: none;
+    background: transparent;
+    padding: 0.4rem 0.95rem;
+    border-radius: var(--radius-md);
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.filter-pill:hover {
+    color: var(--text-primary);
+}
+
+.filter-pill.active {
+    background: #ffffff;
+    color: var(--primary-dark);
+    box-shadow: var(--shadow-sm);
+}
+
+.match-card.playoff {
+    border-left: 5px solid var(--accent-gold);
+    background: linear-gradient(135deg, #ffffff 0%, #fffdf7 100%);
+    box-shadow: 0 4px 12px rgba(245, 158, 11, 0.08);
+}
+
+.badge-qualifier-1 {
+    background: #fef3c7;
+    color: #b45309;
+    font-weight: 800;
+    border: 1px solid #fde68a;
+}
+
+.badge-eliminator {
+    background: #fee2e2;
+    color: #b91c1c;
+    font-weight: 800;
+    border: 1px solid #fecaca;
+}
+
+.badge-qualifier-2 {
+    background: #ede9fe;
+    color: #6d28d9;
+    font-weight: 800;
+    border: 1px solid #ddd6fe;
+}
+
+.badge-final {
+    background: #fef08a;
+    color: #854d0e;
+    font-weight: 800;
+    border: 1px solid #facc15;
+    animation: pulseBorder 2s infinite;
+}
+
+@keyframes pulseBorder {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(234, 179, 8, 0.4); }
+    50% { box-shadow: 0 0 0 6px rgba(234, 179, 8, 0); }
+}
+
+.match-stage-tag {
+    font-size: 0.75rem;
+    color: var(--accent-gold);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.match-source-hint {
+    font-size: 0.74rem;
+    color: var(--text-muted);
+    margin-top: 0.25rem;
+    font-style: italic;
+}
+
+/* Tournament Champion Banner */
+.champion-banner {
+    background: linear-gradient(135deg, #091e16 0%, #064e3b 50%, #047857 100%);
+    color: #ffffff;
+    padding: 1.75rem 1.5rem;
+    border-radius: var(--radius-lg);
+    margin-bottom: 1.5rem;
+    text-align: center;
+    border: 2px solid #fbbf24;
+    box-shadow: 0 10px 25px rgba(251, 191, 36, 0.25);
+    animation: fadeIn 0.4s ease-out;
+}
+
+.champion-trophy {
+    font-size: 3.2rem;
+    margin-bottom: 0.35rem;
+    display: inline-block;
+}
+
+.champion-banner h2 {
+    font-family: var(--font-heading);
+    font-size: 1.85rem;
+    color: #fef08a;
+    letter-spacing: 0.5px;
+}
+
+.champion-banner p {
+    color: #d1fae5;
+    font-size: 1rem;
+    margin-top: 0.25rem;
+}
+
+/* ==========================================================================
+   CREX Scorecard Modal & App Aesthetics
+   ========================================================================== */
+
+.crex-modal-dialog {
+    max-width: 900px;
+    width: 95%;
+}
+
+.crex-modal-header {
+    background: linear-gradient(135deg, #091e16 0%, #12382b 100%);
+    color: #ffffff;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.crex-badge-row {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+}
+
+.crex-logo-tag {
+    background: #10b981;
+    color: #ffffff;
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+    padding: 0.15rem 0.5rem;
+    border-radius: 4px;
+    text-transform: uppercase;
+}
+
+.crex-banner {
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+    color: #ffffff;
+    border-radius: var(--radius-md);
+    padding: 1.25rem 1.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.crex-team-block {
+    flex: 1;
+    text-align: center;
+}
+
+.crex-team-block h4 {
+    font-family: var(--font-heading);
+    font-size: 1.15rem;
+    color: #f8fafc;
+}
+
+.crex-team-score-num {
+    font-size: 1.75rem;
+    font-weight: 800;
+    color: #34d399;
+    font-family: var(--font-heading);
+    margin-top: 0.15rem;
+}
+
+.crex-rr-text {
+    font-size: 0.8rem;
+    color: #94a3b8;
+    font-weight: 600;
+}
+
+.crex-banner-center {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0 1rem;
+}
+
+.crex-vs-circle {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.12);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    font-size: 0.78rem;
+    color: #cbd5e1;
+}
+
+.crex-result-pill {
+    background: rgba(16, 185, 129, 0.2);
+    color: #6ee7b7;
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 0.2rem 0.75rem;
+    border-radius: 12px;
+    max-width: 240px;
+    text-align: center;
+}
+
+.crex-mom-card {
+    background: linear-gradient(135deg, #fef3c7 0%, #fffbeb 100%);
+    border: 1px solid #fde68a;
+    border-radius: var(--radius-md);
+    padding: 0.85rem 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.crex-mom-icon {
+    font-size: 2.2rem;
+    line-height: 1;
+}
+
+.crex-mom-label {
+    font-size: 0.7rem;
+    font-weight: 800;
+    color: #b45309;
+    letter-spacing: 0.5px;
+}
+
+.crex-mom-card h4 {
+    font-family: var(--font-heading);
+    font-size: 1.1rem;
+    color: #78350f;
+    margin: 0.1rem 0;
+}
+
+.crex-mom-card p {
+    font-size: 0.85rem;
+    color: #92400e;
+    font-weight: 500;
+}
+
+.crex-innings-tabs {
+    display: flex;
+    gap: 0.5rem;
+    border-bottom: 2px solid var(--border-color);
+    margin-bottom: 1rem;
+}
+
+.crex-innings-tab {
+    background: transparent;
+    border: none;
+    padding: 0.75rem 1.25rem;
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--text-secondary);
+    cursor: pointer;
+    border-bottom: 3px solid transparent;
+    transition: var(--transition);
+}
+
+.crex-innings-tab:hover {
+    color: var(--text-primary);
+}
+
+.crex-innings-tab.active {
+    color: var(--primary-dark);
+    border-bottom-color: var(--primary-dark);
+}
+
+.crex-section-card {
+    background: #ffffff;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+}
+
+.crex-section-header {
+    background: #f8fafc;
+    padding: 0.65rem 1rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.crex-section-header h5 {
+    font-family: var(--font-heading);
+    font-size: 0.95rem;
+    color: var(--text-primary);
+}
+
+.crex-table th, .crex-table td {
+    padding: 0.65rem 0.85rem;
+    font-size: 0.88rem;
+}
+
+.crex-table th {
+    background: #f8fafc;
+    font-weight: 700;
+    color: var(--text-secondary);
+}
+
+.crex-table tr:hover td {
+    background: #f8fafc;
+}
+
+.crex-innings-summary {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #f8fafc;
+    padding: 0.75rem 1rem;
+    border-top: 1px solid var(--border-color);
+}
+
+.crex-dnb-row {
+    padding: 0.65rem 1rem;
+    background: #ffffff;
+    border-top: 1px dashed var(--border-color);
+    font-size: 0.85rem;
+}
+
+/* Crex Custom Player Score Editor */
+.crex-editor-table input {
+    width: 60px;
+    padding: 0.25rem 0.4rem;
+    font-size: 0.85rem;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    text-align: right;
+}
+
+.crex-editor-table input[type="text"] {
+    width: 140px;
+    text-align: left;
+}
