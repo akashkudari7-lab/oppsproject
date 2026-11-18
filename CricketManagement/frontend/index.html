@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cricket Tournament Management System</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Outfit:wght@500;600;700;800&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <!-- Top Navigation Header -->
+    <header class="app-header">
+        <div class="header-container">
+            <div class="brand">
+                <div class="brand-icon">🏏</div>
+                <div class="brand-text">
+                    <h1>CricTourney</h1>
+                    <p class="subtitle">Cricket Tournament Management System</p>
+                </div>
+            </div>
+            <div class="header-actions">
+                <button id="btnSeedDemo" class="btn btn-secondary btn-sm"
+                    title="Populate sample teams and tournament for quick demonstration">
+                    ⚡ Quick Demo Data
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Navigation Tabs -->
+    <nav class="app-nav">
+        <div class="nav-container">
+            <button class="nav-tab active" data-tab="dashboard">
+                <span class="tab-icon">📊</span> Dashboard
+            </button>
+            <button class="nav-tab" data-tab="teams">
+                <span class="tab-icon">🛡️</span> Teams
+            </button>
+            <button class="nav-tab" data-tab="players">
+                <span class="tab-icon">🧢</span> Players
+            </button>
+            <button class="nav-tab" data-tab="tournaments">
+                <span class="tab-icon">🏆</span> Tournaments
+            </button>
+            <button class="nav-tab" data-tab="fixtures">
+                <span class="tab-icon">⚔️</span> Fixtures & Matches
+            </button>
+            <button class="nav-tab" data-tab="standings">
+                <span class="tab-icon">📋</span> Points Table
+            </button>
+        </div>
+    </nav>
+
+    <!-- Main Container -->
+    <main class="main-content">
+
+        <!-- =============================================================== -->
+        <!-- TAB 1: DASHBOARD OVERVIEW -->
+        <!-- =============================================================== -->
+        <section id="tab-dashboard" class="tab-panel active">
+            <div class="section-title">
+                <h2>Tournament Overview</h2>
+                <p>Live metrics and system status across all cricket operations</p>
+            </div>
+
+            <!-- Metric Cards -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon icon-team">🛡️</div>
+                    <div class="stat-data">
+                        <span class="stat-label">Registered Teams</span>
+                        <h3 class="stat-value" id="statTeams">0</h3>
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-icon icon-player">🧢</div>
+                    <div class="stat-data">
+                        <span class="stat-label">Registered Players</span>
+                        <h3 class="stat-value" id="statPlayers">0</h3>
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-icon icon-tourney">🏆</div>
+                    <div class="stat-data">
+                        <span class="stat-label">Total Tournaments</span>
+                        <h3 class="stat-value" id="statTournaments">0</h3>
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-icon icon-match">🎯</div>
+                    <div class="stat-data">
+                        <span class="stat-label">Matches Completed</span>
+                        <h3 class="stat-value" id="statMatches">0</h3>
+                    </div>
+                </div>
+            </div>
+
+
+            <!-- Quick Action Shortcuts -->
+            <div class="dashboard-quick-actions">
+                <button class="quick-btn" onclick="switchTab('teams')">
+                    <span>➕ Add New Team</span>
+                </button>
+                <button class="quick-btn" onclick="switchTab('players')">
+                    <span>➕ Register Player</span>
+                </button>
+                <button class="quick-btn" onclick="switchTab('tournaments')">
+                    <span>🏆 Create Tournament</span>
+                </button>
+                <button class="quick-btn" onclick="switchTab('fixtures')">
+                    <span>🎯 Enter Scores</span>
+                </button>
+            </div>
+        </section>
+
+        <!-- =============================================================== -->
+        <!-- TAB 2: TEAM MANAGEMENT -->
+        <!-- =============================================================== -->
+        <section id="tab-teams" class="tab-panel">
+            <div class="section-title">
+                <h2>Team Management</h2>
+                <p>Register new cricket squads and manage existing teams</p>
+            </div>
+
+            <div class="grid-2-col">
+                <!-- Add Team Form -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3>Add New Team</h3>
+                    </div>
+                    <form id="formAddTeam" class="form-vertical">
+                        <div class="form-group">
+                            <label for="teamName">Team Name <span class="required">*</span></label>
+                            <input type="text" id="teamName" placeholder="e.g. Mumbai Indians, India, Australia"
+                                required autocomplete="off">
+                            <small class="form-hint">Each team must have a unique identifier and name.</small>
+                        </div>
+                        <button type="submit" class="btn btn-primary">
+                            <span>Add Team</span>
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Teams List Table -->
+                <div class="card">
+                    <div class="card-header flex-between">
+                        <h3>Registered Teams (<span id="teamCount">0</span>)</h3>
+                        <button id="btnRefreshTeams" class="btn btn-secondary btn-xs">🔄 Refresh</button>
+                    </div>
+                    <div class="table-container">
+                        <table class="data-table" id="tableTeams">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Team Name</th>
+                                    <th>Squad Size</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td colspan="4" class="text-center text-muted">No teams registered yet.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- =============================================================== -->
+        <!-- TAB 3: PLAYER MANAGEMENT -->
+        <!-- =============================================================== -->
+        <section id="tab-players" class="tab-panel">
+            <div class="section-title">
+                <h2>Player Management</h2>
+                <p>Add players with specific roles to registered teams and view squad rosters</p>
+            </div>
+
+            <div class="grid-2-col">
+                <!-- Add Player Form -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3>Register Player</h3>
+                    </div>
+                    <form id="formAddPlayer" class="form-vertical">
+                        <div class="form-group">
+                            <label for="playerName">Player Full Name <span class="required">*</span></label>
+                            <input type="text" id="playerName" placeholder="e.g. Virat Kohli, Jasprit Bumrah" required
+                                autocomplete="off">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="playerRole">Playing Role <span class="required">*</span></label>
+                            <select id="playerRole" required>
+                                <option value="" disabled selected>Select Role...</option>
+                                <option value="Batter">Batter 🏏</option>
+                                <option value="Bowler">Bowler 🎯</option>
+                                <option value="All-rounder">All-rounder ⚡</option>
+                                <option value="Wicket-keeper">Wicket-keeper 🧤</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="playerTeamSelect">Assign to Team <span class="required">*</span></label>
+                            <select id="playerTeamSelect" required>
+                                <option value="" disabled selected>Select Team...</option>
+                            </select>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary">
+                            <span>Register Player</span>
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Players Table with Filter -->
+                <div class="card">
+                    <div class="card-header flex-between flex-wrap gap-2">
+                        <h3>Squad Roster (<span id="playerCount">0</span>)</h3>
+                        <div class="filter-box">
+                            <select id="filterPlayerTeam">
+                                <option value="">All Teams (Show All)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="table-container">
+                        <table class="data-table" id="tablePlayers">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Player Name</th>
+                                    <th>Role</th>
+                                    <th>Team</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td colspan="5" class="text-center text-muted">No players registered yet.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- =============================================================== -->
+        <!-- TAB 4: TOURNAMENT CREATION & MANAGEMENT -->
+        <!-- =============================================================== -->
+        <section id="tab-tournaments" class="tab-panel">
+            <div class="section-title">
+                <h2>Tournament Management</h2>
+                <p>Create tournaments, choose format, and select teams for automatic fixture generation</p>
+            </div>
+
+            <div class="grid-2-col">
+                <!-- Create Tournament Form -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3>Create New Tournament</h3>
+                    </div>
+                    <form id="formCreateTournament" class="form-vertical">
+                        <div class="form-group">
+                            <label for="tourneyName">Tournament Name <span class="required">*</span></label>
+                            <input type="text" id="tourneyName" placeholder="e.g. ICC T20 World Cup, IPL 2026" required
+                                autocomplete="off">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="tourneyFormat">Match Format <span class="required">*</span></label>
+                            <select id="tourneyFormat" required>
+                                <option value="T20" selected>Twenty20 (T20 - 20 Overs)</option>
+                                <option value="ODI">One Day International (ODI - 50 Overs)</option>
+                                <option value="Test">Test Match (90 Overs / Multi-innings)</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Select Participating Teams <span class="required">* (At least 2
+                                    required)</span></label>
+                            <div id="tourneyTeamCheckboxes" class="checkbox-list">
+                                <span class="text-muted">Loading teams...</span>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary">
+                            <span>Create Tournament & Generate Fixtures</span>
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Existing Tournaments List -->
+                <div class="card">
+                    <div class="card-header flex-between">
+                        <h3>Active Tournaments</h3>
+                        <button id="btnRefreshTourneys" class="btn btn-secondary btn-xs">🔄 Refresh</button>
+                    </div>
+                    <div class="tourney-cards-container" id="tournamentsList">
+                        <p class="text-center text-muted">No tournaments created yet.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- =============================================================== -->
+        <!-- TAB 5: FIXTURES & MATCH RESULTS -->
+        <!-- =============================================================== -->
+        <section id="tab-fixtures" class="tab-panel">
+            <div class="section-title flex-between flex-wrap gap-2">
+                <div>
+                    <h2>Round-Robin Fixtures & Match Results</h2>
+                    <p>Generated fixtures where each team plays against every other team exactly once</p>
+                </div>
+                <div class="tournament-selector-box">
+                    <label for="selectTourneyForFixtures"><strong>Select Tournament:</strong></label>
+                    <select id="selectTourneyForFixtures">
+                        <option value="">-- Choose a tournament --</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="fixtures-container" id="fixturesContainer">
+                <div class="empty-state">
+                    <span class="empty-state-icon">⚔️</span>
+                    <h3>No Tournament Selected</h3>
+                    <p>Select a tournament from the dropdown above to view generated fixtures and enter match results.
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- =============================================================== -->
+        <!-- TAB 6: POINTS TABLE -->
+        <!-- =============================================================== -->
+        <section id="tab-standings" class="tab-panel">
+            <div class="section-title flex-between flex-wrap gap-2">
+                <div>
+                    <h2>Tournament Points Table</h2>
+                    <p>Current tournament standings (Win = 2 pts, Tie = 1 pt, Loss = 0 pts)</p>
+                </div>
+                <div class="tournament-selector-box">
+                    <label for="selectTourneyForStandings"><strong>Select Tournament:</strong></label>
+                    <select id="selectTourneyForStandings">
+                        <option value="">-- Choose a tournament --</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Standings Table Container -->
+            <div class="card" id="standingsCard">
+                <div class="card-header flex-between flex-wrap gap-2">
+                    <div id="standingsTourneyHeader">
+                        <h3>Standings</h3>
+                    </div>
+                    <div class="standings-rules-chips">
+                        <span class="chip chip-win">Win: 2 Pts</span>
+                        <span class="chip chip-tie">Tie: 1 Pt</span>
+                        <span class="chip chip-loss">Loss: 0 Pts</span>
+                    </div>
+                </div>
+                <div class="table-container">
+                    <table class="data-table standings-table" id="tableStandings">
+                        <thead>
+                            <tr>
+                                <th>Rank</th>
+                                <th>Team Name</th>
+                                <th>Played</th>
+                                <th>Won</th>
+                                <th>Lost</th>
+                                <th>Tied</th>
+                                <th>Points</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td colspan="7" class="text-center text-muted">Select a tournament above to view its
+                                    points table.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="card-footer">
+                    <small class="text-muted">
+                        * Ranking Tie-breaker Hierarchy: 1) Total Points, 2) Total Wins, 3) Team Name Alphabetical Order.
+                    </small>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- =============================================================== -->
+    <!-- SCORE ENTRY MODAL -->
+    <!-- =============================================================== -->
+    <div id="scoreModal" class="modal-backdrop">
+        <div class="modal-dialog">
+            <div class="modal-header">
+                <h3 id="modalMatchTitle">Enter Match Result</h3>
+                <button class="modal-close" onclick="closeScoreModal()">&times;</button>
+            </div>
+            <form id="formScoreEntry">
+                <input type="hidden" id="modalMatchId">
+                <div class="modal-body">
+                    <div class="match-modal-banner">
+                        <div class="team-banner-card">
+                            <span class="team-role-tag">Team A</span>
+                            <h4 id="modalTeamAName">Team A</h4>
+                        </div>
+                        <div class="vs-badge">VS</div>
+                        <div class="team-banner-card">
+                            <span class="team-role-tag">Team B</span>
+                            <h4 id="modalTeamBName">Team B</h4>
+                        </div>
+                    </div>
+
+                    <!-- Innings 1 (Team A) -->
+                    <div class="score-input-section">
+                        <h5>Innings 1: <span id="modalInnings1Label">Team A</span> Score</h5>
+                        <div class="score-inputs-grid">
+                            <div class="form-group">
+                                <label for="scoreA">Runs Scored <span class="required">*</span></label>
+                                <input type="number" id="scoreA" min="0" max="999" required placeholder="e.g. 185">
+                            </div>
+                            <div class="form-group">
+                                <label for="wicketsA">Wickets Lost <span class="required">*</span></label>
+                                <input type="number" id="wicketsA" min="0" max="10" required value="10"
+                                    placeholder="0-10">
+                            </div>
+                            <div class="form-group">
+                                <label for="oversA">Overs Completed</label>
+                                <input type="number" id="oversA" min="0" max="100" step="0.1" value="20.0"
+                                    placeholder="20.0">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Innings 2 (Team B) -->
+                    <div class="score-input-section">
+                        <h5>Innings 2: <span id="modalInnings2Label">Team B</span> Score</h5>
+                        <div class="score-inputs-grid">
+                            <div class="form-group">
+                                <label for="scoreB">Runs Scored <span class="required">*</span></label>
+                                <input type="number" id="scoreB" min="0" max="999" required placeholder="e.g. 182">
+                            </div>
+                            <div class="form-group">
+                                <label for="wicketsB">Wickets Lost <span class="required">*</span></label>
+                                <input type="number" id="wicketsB" min="0" max="10" required value="7"
+                                    placeholder="0-10">
+                            </div>
+                            <div class="form-group">
+                                <label for="oversB">Overs Completed</label>
+                                <input type="number" id="oversB" min="0" max="100" step="0.1" value="20.0"
+                                    placeholder="20.0">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeScoreModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <span>Calculate & Save Result</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Toast Notification Container -->
+    <div id="toastContainer" class="toast-container"></div>
+
+    <script src="script.js"></script>
+</body>
+
+</html>
