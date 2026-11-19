@@ -56,9 +56,7 @@
             <button class="nav-tab" data-tab="standings">
                 <span class="tab-icon">📋</span> Points Table
             </button>
-            <button class="nav-tab" data-tab="crex-stats">
-                <span class="tab-icon">🎖️</span> Crex Stats
-            </button>
+
         </div>
     </nav>
 
@@ -357,7 +355,7 @@
                 <div class="empty-state">
                     <span class="empty-state-icon">⚔️</span>
                     <h3>No Tournament Selected</h3>
-                    <p>Select a tournament from the dropdown above to view generated fixtures, enter scores, and view Crex scorecards.</p>
+                    <p>Select a tournament from the dropdown above to view generated fixtures and enter scores.</p>
                 </div>
             </div>
         </section>
@@ -428,95 +426,6 @@
             </div>
         </section>
 
-        <!-- =============================================================== -->
-        <!-- TAB 7: CREX STATS & TOURNAMENT LEADERBOARDS -->
-        <!-- =============================================================== -->
-        <section id="tab-crex-stats" class="tab-panel">
-            <div class="section-title flex-between flex-wrap gap-2">
-                <div>
-                    <h2>CREX App Tournament Leaderboards</h2>
-                    <p>Individual player statistics: Orange Cap (Leading Run Scorers) and Purple Cap (Leading Wicket Takers)</p>
-                </div>
-                <div class="tournament-selector-box">
-                    <label for="selectTourneyForCrexStats"><strong>Select Tournament:</strong></label>
-                    <select id="selectTourneyForCrexStats">
-                        <option value="">-- Choose a tournament --</option>
-                    </select>
-                </div>
-            </div>
-
-            <div class="grid-2-col">
-                <!-- Orange Cap: Most Runs -->
-                <div class="card">
-                    <div class="card-header flex-between" style="border-left: 4px solid #ea580c;">
-                        <div style="display:flex; align-items:center; gap: 0.5rem;">
-                            <span style="font-size: 1.5rem;">🧡</span>
-                            <div>
-                                <h3 style="color:#c2410c;">Orange Cap</h3>
-                                <small class="text-muted">Most Runs in the Tournament</small>
-                            </div>
-                        </div>
-                        <span class="badge" style="background:#ffedd5; color:#c2410c; font-weight:700;">Top Batters</span>
-                    </div>
-                    <div class="table-container">
-                        <table class="data-table" id="tableOrangeCap">
-                            <thead>
-                                <tr>
-                                    <th>#</th>
-                                    <th>Batter</th>
-                                    <th>Team</th>
-                                    <th class="text-right">Runs</th>
-                                    <th class="text-right">B</th>
-                                    <th class="text-right">4s</th>
-                                    <th class="text-right">6s</th>
-                                    <th class="text-right">SR</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr>
-                                    <td colspan="8" class="text-center text-muted">Select tournament to view Orange Cap leaderboard.</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <!-- Purple Cap: Most Wickets -->
-                <div class="card">
-                    <div class="card-header flex-between" style="border-left: 4px solid #7c3aed;">
-                        <div style="display:flex; align-items:center; gap: 0.5rem;">
-                            <span style="font-size: 1.5rem;">💜</span>
-                            <div>
-                                <h3 style="color:#6d28d9;">Purple Cap</h3>
-                                <small class="text-muted">Most Wickets in the Tournament</small>
-                            </div>
-                        </div>
-                        <span class="badge" style="background:#f3e8ff; color:#6d28d9; font-weight:700;">Top Bowlers</span>
-                    </div>
-                    <div class="table-container">
-                        <table class="data-table" id="tablePurpleCap">
-                            <thead>
-                                <tr>
-                                    <th>#</th>
-                                    <th>Bowler</th>
-                                    <th>Team</th>
-                                    <th class="text-right">Wkts</th>
-                                    <th class="text-right">Overs</th>
-                                    <th class="text-right">M</th>
-                                    <th class="text-right">Runs</th>
-                                    <th class="text-right">Econ</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr>
-                                    <td colspan="8" class="text-center text-muted">Select tournament to view Purple Cap leaderboard.</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </section>
 
     </main>
 

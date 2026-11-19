@@ -369,6 +369,15 @@ def delete_tournament(tournament_id: int) -> bool:
         conn.commit()
         return cursor.rowcount > 0
 
+def delete_match(match_id: int) -> bool:
+    """Delete a single match and its associated player performances."""
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM match_player_performances WHERE match_id = ?", (match_id,))
+        cursor.execute("DELETE FROM matches WHERE id = ?", (match_id,))
+        conn.commit()
+        return cursor.rowcount > 0
+
 # ============================================================================
 # MATCH OPERATIONS
 # ============================================================================

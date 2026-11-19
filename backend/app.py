@@ -561,6 +561,16 @@ def list_tournament_matches(tournament_id):
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
+@app.route("/api/matches/<int:match_id>", methods=["DELETE"])
+def delete_match(match_id):
+    try:
+        deleted = database.delete_match(match_id)
+        if deleted:
+            return jsonify({"status": "success", "message": "Match deleted successfully."})
+        return jsonify({"status": "error", "message": "Match not found."}), 404
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
 @app.route("/api/matches/<int:match_id>/score", methods=["POST"])
 def submit_match_score(match_id):
     try:

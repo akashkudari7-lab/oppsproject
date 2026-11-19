@@ -60,10 +60,7 @@ function switchTab(tabId) {
         loadTournaments();
         if (currentSelectedTourneyId) loadStandings(currentSelectedTourneyId);
     }
-    if (tabId === 'crex-stats') {
-        loadTournaments();
-        if (currentSelectedTourneyId) loadCrexStats(currentSelectedTourneyId);
-    }
+
 }
 
 // ============================================================================
@@ -238,19 +235,6 @@ function initEventListeners() {
         });
     }
 
-    // Select Tournament for Crex Stats
-    const selTourneyCrexStats = document.getElementById('selectTourneyForCrexStats');
-    if (selTourneyCrexStats) {
-        selTourneyCrexStats.addEventListener('change', (e) => {
-            const tourneyId = e.target.value;
-            currentSelectedTourneyId = tourneyId ? parseInt(tourneyId) : null;
-            if (currentSelectedTourneyId) {
-                loadCrexStats(currentSelectedTourneyId);
-            } else {
-                renderEmptyCrexStats();
-            }
-        });
-    }
 
     // Generate Playoff / Qualifier Buttons
     const btnGenQual = document.getElementById('btnGenerateQualifiers');
@@ -637,12 +621,6 @@ function populateTourneyDropdowns(tourneys) {
         if (prev) selStan.value = prev;
     }
 
-    const selCrex = document.getElementById('selectTourneyForCrexStats');
-    if (selCrex) {
-        const prev = selCrex.value;
-        selCrex.innerHTML = options;
-        if (prev) selCrex.value = prev;
-    }
 }
 
 function viewTournamentFixtures(tourneyId) {
@@ -820,20 +798,15 @@ function renderFixtures(allMatches) {
                                 <div class="match-result-banner ${m.is_tie ? 'tie' : ''}">
                                     ${escapeHtml(m.result_description || 'Match completed')}
                                 </div>
-                                ${m.man_of_match ? `
-                                    <div style="font-size: 0.78rem; color:#78350f; background:#fef3c7; border-radius:4px; padding:0.25rem 0.5rem; margin-top:0.35rem; display:flex; align-items:center; gap:0.35rem;">
-                                        <span>⭐</span> <strong>Player of Match:</strong> ${escapeHtml(m.man_of_match)} <span class="text-muted">(${escapeHtml(m.man_of_match_performance || '')})</span>
-                                    </div>
-                                ` : ''}
                             ` : ''}
                         </div>
                         <div class="match-footer" style="display:flex; justify-content:space-between; gap:0.4rem;">
                             ${isCompleted ? `
-                                <button class="btn btn-secondary btn-sm" onclick="openCrexScorecard(${m.id})">
-                                    📊 Crex Scorecard
-                                </button>
                                 <button class="btn btn-secondary btn-sm" onclick="openScoreModal(${JSON.stringify(m).replace(/"/g, '&quot;')})">
                                     ✏️ Edit
+                                </button>
+                                <button class="btn btn-danger btn-sm" onclick="deleteMatch(${m.id})">
+                                    🗑️ Delete
                                 </button>
                             ` : `
                                 <button class="btn btn-primary btn-sm" style="width:100%;" onclick="openScoreModal(${JSON.stringify(m).replace(/"/g, '&quot;')})">
@@ -883,6 +856,26 @@ function renderEmptyFixtures() {
             <p>Select a tournament from the dropdown above to view generated fixtures and enter match results.</p>
         </div>
     `;
+}
+
+async function deleteMatch(matchId) {
+    if (!confirm('Are you sure you want to delete this match? This action cannot be undone.')) return;
+
+    try {
+        const res = await fetch(`/api/matches/${matchId}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (res.ok && data.status === 'success') {
+            showToast('Match deleted successfully.', 'success');
+            if (currentSelectedTourneyId) {
+                loadFixtures(currentSelectedTourneyId);
+            }
+            loadDashboard();
+        } else {
+            showToast(data.message || 'Failed to delete match.', 'error');
+        }
+    } catch (err) {
+        showToast(`Error: ${err.message}`, 'error');
+    }
 }
 
 // ============================================================================
@@ -1250,83 +1243,6 @@ async function saveCrexEditorScores() {
     } catch (err) {
         showToast(`Error: ${err.message}`, 'error');
     }
-}
-
-// ============================================================================
-// CREX STATS HUB (ORANGE & PURPLE CAP)
-// ============================================================================
-
-async function loadCrexStats(tourneyId) {
-    const tableOrange = document.querySelector('#tableOrangeCap tbody');
-    const tablePurple = document.querySelector('#tablePurpleCap tbody');
-
-    if (tableOrange) tableOrange.innerHTML = `<tr><td colspan="8" class="text-center">⏳ Loading stats...</td></tr>`;
-    if (tablePurple) tablePurple.innerHTML = `<tr><td colspan="8" class="text-center">⏳ Loading stats...</td></tr>`;
-
-    try {
-        const res = await fetch(`/api/tournaments/${tourneyId}/crex-stats`);
-        const data = await res.json();
-        if (res.ok && data.status === 'success') {
-            renderCrexStats(data.data);
-        } else {
-            renderEmptyCrexStats(data.message);
-        }
-    } catch (err) {
-        renderEmptyCrexStats(err.message);
-    }
-}
-
-function renderCrexStats(stats) {
-    const tableOrange = document.querySelector('#tableOrangeCap tbody');
-    const tablePurple = document.querySelector('#tablePurpleCap tbody');
-
-    const orangeList = stats.orange_cap || [];
-    const purpleList = stats.purple_cap || [];
-
-    if (tableOrange) {
-        if (orangeList.length === 0) {
-            tableOrange.innerHTML = `<tr><td colspan="8" class="text-center text-muted">No batting statistics available yet. Complete matches to see leaders.</td></tr>`;
-        } else {
-            tableOrange.innerHTML = orangeList.map((p, idx) => `
-                <tr>
-                    <td><span class="rank-badge ${idx === 0 ? 'rank-1' : ''}">${p.rank}</span></td>
-                    <td><strong>${escapeHtml(p.player_name)}</strong> ${idx === 0 ? '🧡' : ''}</td>
-                    <td><span class="badge badge-primary">${escapeHtml(p.team_name)}</span></td>
-                    <td class="text-right"><strong style="color:#c2410c; font-size:1.1rem;">${p.runs}</strong></td>
-                    <td class="text-right" style="color:#64748b;">${p.balls}</td>
-                    <td class="text-right">${p.fours}</td>
-                    <td class="text-right">${p.sixes}</td>
-                    <td class="text-right" style="color:#0f766e; font-weight:700;">${p.strike_rate}</td>
-                </tr>
-            `).join('');
-        }
-    }
-
-    if (tablePurple) {
-        if (purpleList.length === 0) {
-            tablePurple.innerHTML = `<tr><td colspan="8" class="text-center text-muted">No bowling statistics available yet. Complete matches to see leaders.</td></tr>`;
-        } else {
-            tablePurple.innerHTML = purpleList.map((p, idx) => `
-                <tr>
-                    <td><span class="rank-badge ${idx === 0 ? 'rank-1' : ''}">${p.rank}</span></td>
-                    <td><strong>${escapeHtml(p.player_name)}</strong> ${idx === 0 ? '💜' : ''}</td>
-                    <td><span class="badge badge-primary">${escapeHtml(p.team_name)}</span></td>
-                    <td class="text-right"><strong style="color:#6d28d9; font-size:1.1rem;">${p.wickets}</strong></td>
-                    <td class="text-right">${p.overs}</td>
-                    <td class="text-right">${p.maidens}</td>
-                    <td class="text-right" style="color:#64748b;">${p.runs_conceded}</td>
-                    <td class="text-right" style="color:#0f766e; font-weight:700;">${p.economy}</td>
-                </tr>
-            `).join('');
-        }
-    }
-}
-
-function renderEmptyCrexStats(msg = 'Select a tournament above to view player leaderboards.') {
-    const tableOrange = document.querySelector('#tableOrangeCap tbody');
-    const tablePurple = document.querySelector('#tablePurpleCap tbody');
-    if (tableOrange) tableOrange.innerHTML = `<tr><td colspan="8" class="text-center text-muted">${escapeHtml(msg)}</td></tr>`;
-    if (tablePurple) tablePurple.innerHTML = `<tr><td colspan="8" class="text-center text-muted">${escapeHtml(msg)}</td></tr>`;
 }
 
 // ============================================================================
